@@ -1,6 +1,8 @@
-package schedulequeue
+package queue
 
-import "github.com/AgentGuo/scheduler/task"
+import (
+	"github.com/AgentGuo/scheduler/task"
+)
 
 // TaskQueue priority queue for task scheduling, it is not thread safe
 type TaskQueue []task.Task
@@ -28,5 +30,10 @@ func (t *TaskQueue) Pop() interface{} {
 	}
 	popItem := (*t)[l-1]
 	*t = (*t)[:l-1]
-	return popItem
+	return &popItem
+}
+
+// ScheduleQueue general scheduling queue interface
+type ScheduleQueue interface {
+	GetTask() *task.Task
 }

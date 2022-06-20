@@ -1,9 +1,10 @@
 package task
 
 type Task struct {
-	Status     int   // task status
-	Priority   int   // task priority
-	UpdateTime int64 // last update time stamp
+	Name       string // task name
+	Status     int    // task status
+	Priority   int    // task priority
+	UpdateTime int64  // last update time stamp
 }
 
 func (t Task) Len() int {

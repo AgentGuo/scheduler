@@ -1,4 +1,4 @@
-// Package config is config definition for scheduler-main
+// Package config is config definition for binder-main
 package config
 
 import (
@@ -6,7 +6,7 @@ import (
 	"io/ioutil"
 )
 
-// Config scheduler-main config
+// Config binder-main config
 type Config struct {
 	Port int `yaml:"port"` // server port
 }

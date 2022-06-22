@@ -23,6 +23,12 @@ type KubeQueue struct {
 	q  *queue.TaskQueue
 }
 
+type KubeTaskDetails struct {
+	PodName   string
+	Namespace string
+	UID       string
+}
+
 func NewKubeQueue() *KubeQueue {
 	kq := &KubeQueue{
 		rw: &sync.RWMutex{},
@@ -96,7 +102,14 @@ func (k *KubeQueue) addPodToSchedulingQueue(obj interface{}) {
 	defer k.rw.Unlock()
 	pod := obj.(*v1.Pod)
 	log.Printf("Add event for unscheduled pod: %s\n", pod.Name)
-	k.q.Push(task.Task{Name: pod.Name})
+	k.q.Push(task.Task{
+		Name: pod.Name,
+		Detail: KubeTaskDetails{
+			PodName:   pod.Name,
+			Namespace: pod.Namespace,
+			UID:       string(pod.UID),
+		},
+	})
 }
 
 func (k *KubeQueue) updatePodInSchedulingQueue(oldObj, newObj interface{}) {

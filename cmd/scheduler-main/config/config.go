@@ -8,7 +8,9 @@ import (
 
 // SchedulerMainConfig binder-main config
 type SchedulerMainConfig struct {
-	Port int `yaml:"port"` // server port
+	Port          int    `yaml:"port"` // server port
+	RedisAddr     string `yaml:"redis_addr"`
+	RedisPassword string `yaml:"redis_password"`
 }
 
 func ReadConfig(configFilePath string) (*SchedulerMainConfig, error) {

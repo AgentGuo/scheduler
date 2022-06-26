@@ -1,4 +1,3 @@
-// Package config is config definition for binder-main
 package config
 
 import (
@@ -6,14 +5,15 @@ import (
 	"io/ioutil"
 )
 
-// SchedulerMainConfig binder-main config
-type SchedulerMainConfig struct {
-	Port int `yaml:"port"` // server port
+type MetricsCliConfig struct {
+	RedisAddr     string `yaml:"redis_addr"`
+	RedisPassword string `yaml:"redis_password"`
 }
 
-func ReadConfig(configFilePath string) (*SchedulerMainConfig, error) {
-	config := &SchedulerMainConfig{ // default config value
-		Port: 12345,
+func ReadConfig(configFilePath string) (*MetricsCliConfig, error) {
+	config := &MetricsCliConfig{ // default config value
+		RedisAddr:     "127.0.0.1:6379",
+		RedisPassword: "foobared",
 	}
 	// No config set, use default
 	if len(configFilePath) == 0 {

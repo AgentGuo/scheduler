@@ -9,7 +9,7 @@ import (
 	"log"
 )
 
-func RunSchedulerMain(config config.Config) {
+func RunSchedulerMain(config *config.SchedulerMainConfig) {
 	log.Println("hello, i am binder main! this is the config file")
 	log.Printf("%v\n", config)
 	var (

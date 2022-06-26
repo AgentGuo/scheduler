@@ -12,6 +12,7 @@
 *.so
 *.dylib
 cmd/scheduler-main/scheduler-main
+cmd/metrics-cli/metrics-cli
 # Test binary, built with `go test -c`
 *.test
 

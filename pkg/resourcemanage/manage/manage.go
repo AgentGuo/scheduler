@@ -16,11 +16,11 @@ func (m *Manager) changeResourceLimitInKube(target *apis.KubeResourceTask) error
 	mem := target.MemoryLimit
 
 	if cpu != 0 {
-		return changeLimitInKubeByResource("cpu", cpu, target)
+		return changeLimitInKubeByResource("cpu", cpu, apis.CpuLimitInUs, target)
 	}
 
 	if mem != 0 {
-		return changeLimitInKubeByResource("memory", mem, target)
+		return changeLimitInKubeByResource("memory", mem, apis.MemoryLimitInBytes, target)
 	}
 	log.Println("Nothing changed.")
 	return nil
@@ -42,9 +42,9 @@ func (m *Manager) ChangeResourceLimit(args apis.ResourceModifyArgs, reply *apis.
 	return err
 }
 
-func changeLimitInKubeByResource(resource string, changeData int64, target *apis.KubeResourceTask) error {
+func changeLimitInKubeByResource(resource string, changeData int64, changeFile string, target *apis.KubeResourceTask) error {
 	// check Burstable Pod firstly
-	path := target.KubeResourcePathByPodContainerID(resource, apis.KubeBurstableDir, apis.KubeBurstablePodDirPrefix, apis.CpuLimitInUs)
+	path := target.KubeResourcePathByPodContainerID(resource, apis.KubeBurstableDir, apis.KubeBurstablePodDirPrefix, changeFile)
 	log.Println(path)
 	if ok, err := util.IsDirOrFileExist(path); ok {
 		if errw := util.WriteIntToFile(path, changeData); errw != nil {
@@ -57,7 +57,7 @@ func changeLimitInKubeByResource(resource string, changeData int64, target *apis
 			return err
 		}
 		// then check Besteffort Pod
-		path = target.KubeResourcePathByPodContainerID(resource, apis.KubeBesteffortDir, apis.KubeBesteffortPodDirPrefix, apis.CpuLimitInUs)
+		path = target.KubeResourcePathByPodContainerID(resource, apis.KubeBesteffortDir, apis.KubeBesteffortPodDirPrefix, changeFile)
 		if ok1, err1 := util.IsDirOrFileExist(path); ok1 {
 			if errw := util.WriteIntToFile(path, changeData); errw != nil {
 				return errw

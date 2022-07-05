@@ -12,14 +12,12 @@ import (
 )
 
 type ResourceManager struct {
-	PlatformNotifier *manage.PlatformNotifier
 	*manage.Manager
 }
 
 func NewResourceManager() *ResourceManager {
 	return &ResourceManager{
-		PlatformNotifier: manage.NewPlatformNotifier(),
-		Manager:          manage.NewManager(),
+		Manager: manage.NewManager(),
 	}
 }
 
@@ -29,7 +27,7 @@ func (rm *ResourceManager) server(port int) {
 		log.Fatal("rpc register error:", err)
 		return
 	}
-	listener, err := net.Listen("tcp", ":"+fmt.Sprintf("%d", port))
+	listener, err := net.Listen("tcp", "0.0.0.0:"+fmt.Sprintf("%d", port))
 	if err != nil {
 		log.Fatal("listen error:", err)
 		return

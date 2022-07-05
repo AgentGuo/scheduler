@@ -38,12 +38,19 @@ func IsDirOrFileExist(path string) (bool, error) {
 	return true, nil
 }
 
-// WriteToFile 写int64到文件
-func WriteIntToFile(path string, data int64) error {
-	s := strconv.FormatInt(data, 10)
-	err := ioutil.WriteFile(path, []byte(s), 0644)
+// WriteToFile 写int64到文件, 并返回原值
+func WriteIntToFile(path string, data int64) (int64, error) {
+	oldDataB, err := ioutil.ReadFile(path)
 	if err != nil {
-		return err
+		return 0, err
 	}
-	return nil
+	oldData, err := strconv.ParseInt(strings.Replace(string(oldDataB), "\n", "", -1), 10, 64)
+	if err != nil {
+		return 0, err
+	}
+	err = ioutil.WriteFile(path, []byte(strconv.FormatInt(data, 10)), 0644)
+	if err != nil {
+		return 0, err
+	}
+	return oldData, nil
 }

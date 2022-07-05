@@ -47,16 +47,17 @@ func TestWriteIntToFile(t *testing.T) {
 		name string
 		path string
 		data int64
+		old  int64
 		want error
 	}{
-		{"test#1", "/root/test", 20000, nil},
-		{"test#2", "/root/test_non", 1, nil},
+		{"test#1", "/root/test", 20000, 1, nil},
+		{"test#2", "/root/test_non", 1, 0, nil},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if ok, err1 := IsDirOrFileExist(tt.path); ok {
-				if err := WriteIntToFile(tt.path, tt.data); err != tt.want {
-					t.Errorf("WriteIntToFile(%s, %d) is %s, want %v", tt.path, tt.data, err, tt.want)
+				if old, err := WriteIntToFile(tt.path, tt.data); err != tt.want {
+					t.Errorf("WriteIntToFile(%s, %d) return %d, %s, want %v", tt.path, tt.data, old, err, tt.want)
 				}
 			} else {
 				t.Errorf("error %v", err1)

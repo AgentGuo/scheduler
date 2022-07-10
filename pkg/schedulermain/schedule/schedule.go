@@ -9,7 +9,7 @@ import (
 )
 
 type Scheduler struct {
-	redisCli *redis.Client
+	RedisCli *redis.Client
 }
 
 func NewScheduler(config *config.SchedulerMainConfig) (*Scheduler, error) {
@@ -23,7 +23,7 @@ func NewScheduler(config *config.SchedulerMainConfig) (*Scheduler, error) {
 		return nil, err
 	}
 	return &Scheduler{
-		redisCli: redisCli,
+		RedisCli: redisCli,
 	}, nil
 }
 

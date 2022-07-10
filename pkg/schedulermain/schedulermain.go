@@ -17,6 +17,8 @@ type SchedulerMain struct {
 	Scheduler *schedule.Scheduler
 }
 
+const taskInfoKey = "taskInfo"
+
 func NewSchedulerMain(config *config.SchedulerMainConfig) (*SchedulerMain, error) {
 	Scheduler, err := schedule.NewScheduler(config)
 	if err != nil {
@@ -41,8 +43,8 @@ func RunSchedulerMain(config *config.SchedulerMainConfig) {
 	for {
 		t := s.ScheduleQ.GetTask()
 		if t != nil {
-			log.Printf("unscheduled pod: %s\n", t.Name)
-			if t.Name == "pause" {
+			log.Printf("unscheduled task: %s\n", t.Name)
+			if t.Name == "pause-default" { // 测试用的逻辑
 				node, err := s.Scheduler.Schedule(t)
 				if err != nil {
 					log.Fatal(err)
@@ -52,6 +54,10 @@ func RunSchedulerMain(config *config.SchedulerMainConfig) {
 				if err != nil {
 					log.Fatal(err)
 					continue
+				}
+				err = s.Scheduler.RedisCli.HSet(taskInfoKey, t.Name, node).Err()
+				if err != nil {
+					log.Fatal(err)
 				}
 			}
 		}

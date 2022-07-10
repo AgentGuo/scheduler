@@ -14,7 +14,7 @@ type NodeScore struct {
 }
 
 func (s *Scheduler) score() ([]NodeScore, error) {
-	keys, err := s.redisCli.HKeys(metricscli.MetricsInfoKey).Result()
+	keys, err := s.RedisCli.HKeys(metricscli.MetricsInfoKey).Result()
 	if err != nil {
 		return nil, err
 	}
@@ -24,7 +24,7 @@ func (s *Scheduler) score() ([]NodeScore, error) {
 		wg.Add(1)
 		go func(k string, group *sync.WaitGroup) {
 			defer group.Done()
-			v, err := s.redisCli.HGet(metricscli.MetricsInfoKey, k).Result()
+			v, err := s.RedisCli.HGet(metricscli.MetricsInfoKey, k).Result()
 			if err != nil {
 				return
 			}

@@ -5,7 +5,7 @@ import "net/rpc"
 const ResourceManageRPC = "ResourceManageRPC"
 
 type ResourceModifyArgs struct {
-	ResourceTask interface{}
+	ResourceTask interface{} // TODO: 修改为基本类型
 }
 
 type ResourceModifyReply struct {

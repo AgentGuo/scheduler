@@ -50,6 +50,6 @@ func (s *Scheduler) score() ([]NodeScore, error) {
 	return priorityList, nil
 }
 
-func nodeScore(nodeInfo *metricscli.MetricsInfo) float64 {
+func nodeScore(nodeInfo *metricscli.MetricsInfo) int64 {
 	return nodeInfo.CpuRemain + nodeInfo.MemFree
 }

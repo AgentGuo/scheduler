@@ -1,3 +1,4 @@
 port: 12346
 redis_addr: "192.168.247.133:6379"
 redis_password: "foobared"
+resource_manager_port: 12351

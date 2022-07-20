@@ -2,10 +2,22 @@ package apis
 
 import "net/rpc"
 
-const ResourceManageRPC = "ResourceManageRPC"
+const (
+	ResourceManageRPC   = "ResourceManageRPC"
+	ChangeResourceLimit = "ChangeResourceLimit"
+)
 
 type ResourceModifyArgs struct {
-	ResourceTask interface{} // TODO: 修改为基本类型
+	Type          string
+	ContainerName string
+	ContainerId   string
+	CpuLimit      int64
+	MemoryLimit   int64
+
+	// k8s
+	PodName   string
+	PodUid    string
+	NameSpace string
 }
 
 type ResourceModifyReply struct {
@@ -13,7 +25,7 @@ type ResourceModifyReply struct {
 }
 
 type ResourceService interface {
-	ChangeResourceLimit(args ResourceModifyArgs, reply *ResourceModifyReply) error
+	ChangeResourceLimit(args *ResourceModifyArgs, reply *ResourceModifyReply) error
 }
 
 func RegisterService(service ResourceService) error {

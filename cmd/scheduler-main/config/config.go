@@ -2,20 +2,23 @@
 package config
 
 import (
-	"gopkg.in/yaml.v2"
 	"io/ioutil"
+
+	"gopkg.in/yaml.v2"
 )
 
 // SchedulerMainConfig binder-main config
 type SchedulerMainConfig struct {
-	Port          int    `yaml:"port"` // server port
-	RedisAddr     string `yaml:"redis_addr"`
-	RedisPassword string `yaml:"redis_password"`
+	Port                int    `yaml:"port"` // server port
+	RedisAddr           string `yaml:"redis_addr"`
+	RedisPassword       string `yaml:"redis_password"`
+	ResourceManagerPort int    `yaml:"resource_manager_port"`
 }
 
 func ReadConfig(configFilePath string) (*SchedulerMainConfig, error) {
 	config := &SchedulerMainConfig{ // default config value
-		Port: 12345,
+		Port:                12345,
+		ResourceManagerPort: 12350,
 	}
 	// No config set, use default
 	if len(configFilePath) == 0 {

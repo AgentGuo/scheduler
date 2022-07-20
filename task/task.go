@@ -1,11 +1,26 @@
 package task
 
+const (
+	// task type
+	KubeResourceTaskType string = "KubeResourceTask"
+	ResourceTaskType     string = "ResourceTask"
+	NormalTaskType       string = "NormalTask"
+
+	// task status
+	PENDING string = "pending"
+	RUNNING string = "running"
+	DELETED string = "deleted"
+)
+
 type Task struct {
-	Name       string      // task name
-	Status     int         // task status
-	Priority   int         // task priority
-	UpdateTime int64       // last update time stamp
-	Detail     interface{} // detailed information
+	Name           string      `json:"Name"`           // task name
+	Status         string      `json:"Status"`         // task status
+	Priority       int         `json:"Priority"`       // task priority
+	UpdateTime     int64       `json:"UpdateTime"`     // last update time stamp
+	TaskType       string      `json:"TaskType"`       // task type
+	NodeName       string      `json:"NodeName"`       // run on
+	Detail         interface{} `json:"Detail"`         // detailed information
+	ResourceDetail interface{} `json:"ResourceDetail"` // resource information
 }
 
 func (t Task) Len() int {

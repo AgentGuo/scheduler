@@ -3,6 +3,12 @@ package kubequeue
 import (
 	"container/heap"
 	"fmt"
+	"log"
+	"path/filepath"
+	"sync"
+	"time"
+
+	"github.com/AgentGuo/scheduler/pkg/resourcemanage/apis"
 	"github.com/AgentGuo/scheduler/task"
 	"github.com/AgentGuo/scheduler/task/queue"
 	"github.com/AgentGuo/scheduler/util"
@@ -12,10 +18,6 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/clientcmd"
-	"log"
-	"path/filepath"
-	"sync"
-	"time"
 )
 
 type KubeQueue struct {
@@ -24,9 +26,9 @@ type KubeQueue struct {
 }
 
 type KubeTaskDetails struct {
-	PodName   string
-	Namespace string
-	UID       string
+	PodName   string `json:"PodName"`
+	Namespace string `json:"Namespace"`
+	UID       string `json:"UID"`
 }
 
 func NewKubeQueue() *KubeQueue {
@@ -97,17 +99,30 @@ func (k KubeQueue) GetTask() *task.Task {
 	}
 }
 
+func (k KubeQueue) SubmitTask(task task.Task) {
+	k.rw.RLock()
+	defer k.rw.RUnlock()
+
+	k.q.Push(task)
+}
+
 func (k *KubeQueue) addPodToSchedulingQueue(obj interface{}) {
 	k.rw.Lock()
 	defer k.rw.Unlock()
 	pod := obj.(*v1.Pod)
 	log.Printf("Add event for unscheduled pod: %s\n", pod.Name)
 	k.q.Push(task.Task{
-		Name: pod.Name + "-" + pod.Namespace,
+		Name:     pod.Name + "-" + pod.Namespace,
+		Status:   task.PENDING,
+		TaskType: task.NormalTaskType,
 		Detail: KubeTaskDetails{
 			PodName:   pod.Name,
 			Namespace: pod.Namespace,
 			UID:       string(pod.UID),
+		},
+		ResourceDetail: apis.ResourceValue{
+			CpuLimit:    getPodCpuLimits(pod),
+			MemoryLimit: getPodMemLimits(pod),
 		},
 	})
 }
@@ -120,4 +135,30 @@ func (k *KubeQueue) updatePodInSchedulingQueue(oldObj, newObj interface{}) {
 func (k *KubeQueue) deletePodFromSchedulingQueue(obj interface{}) {
 	pod := obj.(*v1.Pod)
 	log.Printf("Delete event for pod: %s\n", pod.Name)
+}
+
+func getPodCpuLimits(pod *v1.Pod) int64 {
+	var cpuLimits int64 = 0
+	for _, c := range pod.Spec.Containers {
+		cpuLimitQ := c.Resources.Limits[v1.ResourceCPU]
+		cpuLimits += int64(cpuLimitQ.AsApproximateFloat64() * 1000) // m
+	}
+
+	if cpuLimits == 0 {
+		return -1 // no limit, cgroup use -1
+	}
+	return cpuLimits
+}
+
+func getPodMemLimits(pod *v1.Pod) int64 {
+	var memLimits int64 = 0
+	for _, c := range pod.Spec.Containers {
+		memLimitQ := c.Resources.Limits[v1.ResourceMemory]
+		memLimits += int64(memLimitQ.AsApproximateFloat64()) // byte
+	}
+
+	if memLimits == 0 {
+		return -1
+	}
+	return memLimits
 }

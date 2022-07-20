@@ -7,18 +7,21 @@ import (
 	"github.com/AgentGuo/scheduler/util"
 )
 
-const CgroupKubeDir = "kubepods.slice"
-const KubeBesteffortDir = "kubepods-besteffort.slice"
-const KubeBurstableDir = "kubepods-burstable.slice"
-const KubeBesteffortPodDirPrefix = "kubepods-besteffort-pod"
-const KubeBurstablePodDirPrefix = "kubepods-burstable-pod"
-const KubePodDirSuffix = ".slice"
-const KubeDockerDirPrefix = "docker-"
-const KubeDockerDirSuffix = ".scope"
+const (
+	CgroupKubeDir              = "kubepods.slice"
+	KubeBesteffortDir          = "kubepods-besteffort.slice"
+	KubeBurstableDir           = "kubepods-burstable.slice"
+	KubeBesteffortPodDirPrefix = "kubepods-besteffort-pod"
+	KubeBurstablePodDirPrefix  = "kubepods-burstable-pod"
+	KubePodDirSuffix           = ".slice"
+	KubeDockerDirPrefix        = "docker-"
+	KubeDockerDirSuffix        = ".scope"
+)
 
 type KubeResourceTask struct {
-	PodName string
-	PodUid  string
+	PodName   string `json:"PodName"`
+	PodUid    string `json:"PodUid"`
+	Namespace string `json:"Namespace"`
 	ResourceTask
 }
 

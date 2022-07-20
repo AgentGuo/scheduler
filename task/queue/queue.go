@@ -36,4 +36,5 @@ func (t *TaskQueue) Pop() interface{} {
 // ScheduleQueue general scheduling queue interface
 type ScheduleQueue interface {
 	GetTask() *task.Task
+	SubmitTask(task.Task)
 }

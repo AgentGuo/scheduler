@@ -8,23 +8,30 @@ import (
 	"github.com/AgentGuo/scheduler/util"
 )
 
-func (m *Manager) changeResourceLimitInKube(target *apis.KubeResourceTask) error {
+type KubeManager struct {
+}
+
+func (km KubeManager) changeResource(t interface{}) error {
+	target, ok := t.(apis.KubeResourceTask)
+	if !ok {
+		return fmt.Errorf("target cannot convert to KubeResourceTask")
+	}
 	var oldValueCpu int64
 	var oldValueMem int64
 	var err error
 
 	if target.CpuLimit != 0 {
-		if oldValueCpu, err = changeLimitInKubeByResource("cpu", apis.CpuLimitInUs, target); err != nil {
+		if oldValueCpu, err = changeLimitInKubeByResource("cpu", apis.CpuLimitInUs, &target); err != nil {
 			log.Println("change cpu limit failed")
 			return err
 		}
 	}
 
 	if target.MemoryLimit != 0 {
-		if oldValueMem, err = changeLimitInKubeByResource("memory", apis.MemoryLimitInBytes, target); err != nil {
+		if oldValueMem, err = changeLimitInKubeByResource("memory", apis.MemoryLimitInBytes, &target); err != nil {
 			log.Println("change memory limit failed")
 			target.CpuLimit = oldValueCpu
-			if _, err = changeLimitInKubeByResource("cpu", apis.CpuLimitInUs, target); err != nil {
+			if _, err = changeLimitInKubeByResource("cpu", apis.CpuLimitInUs, &target); err != nil {
 				log.Println("change back cpu limit failed")
 				return err
 			}
@@ -32,7 +39,6 @@ func (m *Manager) changeResourceLimitInKube(target *apis.KubeResourceTask) error
 		}
 	}
 	log.Printf("cpu: %d -> %d, mem: %d -> %d\n", oldValueCpu, target.CpuLimit, oldValueMem, target.MemoryLimit)
-	// TODO: Notify Platform
 	return nil
 }
 

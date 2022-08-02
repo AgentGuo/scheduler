@@ -1,26 +1,29 @@
 package manage
 
 import (
-	"fmt"
 	"log"
 
 	"github.com/AgentGuo/scheduler/pkg/resourcemanage/apis"
 	"github.com/AgentGuo/scheduler/task"
 )
 
-type Manager struct {
-	PlatformNotifier *PlatformNotifier
+type PlatformManager interface {
+	changeResource(t interface{}) error
 }
 
-func (m *Manager) changeResourceLimitInOthers() error {
-	log.Println("Need to implement.")
-	return fmt.Errorf("unknown type of task")
+type PlatformNotifier interface {
+	Notify(t interface{}) error
+}
+
+type Manager struct {
+	platformManager  PlatformManager
+	platformNotifier PlatformNotifier
 }
 
 func (m *Manager) ChangeResourceLimit(args *apis.ResourceModifyArgs, reply *apis.ResourceModifyReply) (err error) {
 	switch args.Type {
 	case task.KubeResourceTaskType:
-		kubeTask := &apis.KubeResourceTask{
+		kubeTask := apis.KubeResourceTask{
 			PodName: args.PodName,
 			PodUid:  args.PodUid,
 			ResourceTask: apis.ResourceTask{
@@ -32,27 +35,27 @@ func (m *Manager) ChangeResourceLimit(args *apis.ResourceModifyArgs, reply *apis
 				},
 			},
 		}
-		err = m.changeResourceLimitInKube(kubeTask)
+		err = m.platformManager.changeResource(kubeTask)
 		if err != nil {
 			log.Printf("ChangeResourceLimit failed with task %v", kubeTask)
 			reply.Done = false
 			return err
 		}
+		err = m.platformNotifier.Notify(kubeTask)
+		if err != nil {
+			// 暂不处理
+		}
 		reply.Done = true
 		return nil
 	default:
-		err = m.changeResourceLimitInOthers()
-		if err != nil {
-			reply.Done = false
-			return err
-		}
-		reply.Done = true
+		reply.Done = false
 		return nil
 	}
 }
 
-func NewManager() *Manager {
+func NewManager(pm PlatformManager, pn PlatformNotifier) *Manager {
 	return &Manager{
-		PlatformNotifier: &PlatformNotifier{},
+		platformManager:  pm,
+		platformNotifier: pn,
 	}
 }

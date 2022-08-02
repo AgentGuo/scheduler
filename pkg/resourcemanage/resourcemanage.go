@@ -17,7 +17,7 @@ type ResourceManager struct {
 
 func NewResourceManager() *ResourceManager {
 	return &ResourceManager{
-		Manager: manage.NewManager(),
+		Manager: manage.NewManager(manage.KubeManager{}, manage.KubeNotifier{}),
 	}
 }
 

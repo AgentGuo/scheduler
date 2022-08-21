@@ -108,7 +108,8 @@ func (k *KubeQueue) addPodToSchedulingQueue(obj interface{}) {
 	pod := obj.(*v1.Pod)
 	logger.Debugf("add event for unscheduled pod: %s\n", pod.Name)
 	k.q.Push(task.Task{
-		Name: pod.Name + "-" + pod.Namespace,
+		Name:   pod.Name + "-" + pod.Namespace,
+		Labels: pod.Labels,
 		Detail: KubeTaskDetails{
 			PodName:   pod.Name,
 			Namespace: pod.Namespace,

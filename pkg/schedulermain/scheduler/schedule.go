@@ -4,15 +4,19 @@ import (
 	"context"
 	"fmt"
 	"github.com/AgentGuo/scheduler/cmd/scheduler-main/config"
+	"github.com/AgentGuo/scheduler/pkg/metricscli"
 	"github.com/AgentGuo/scheduler/pkg/schedulermain/scheduler/plugin"
 	"github.com/AgentGuo/scheduler/pkg/schedulermain/task"
 	"github.com/go-redis/redis"
+	"k8s.io/apimachinery/pkg/util/json"
+	"time"
 )
 
 type Scheduler struct {
-	RedisCli    *redis.Client
-	ScorePlugin []plugin.ScorePlugin
-	ScoreWeight []float64
+	RedisCli      *redis.Client
+	ScorePlugins  []plugin.ScorePlugin
+	ScoreWeights  []float64
+	FilterPlugins []plugin.FilterPlugin
 }
 
 func NewScheduler(cfg *config.SchedulerMainConfig) (*Scheduler, error) {
@@ -25,21 +29,49 @@ func NewScheduler(cfg *config.SchedulerMainConfig) (*Scheduler, error) {
 		return nil, err
 	}
 	pluginRegMap := GetRegistryMap()
-	scorePlugin, scoreWeight := InitScorePlugin(redisCli, cfg, pluginRegMap)
+	scorePlugins, scoreWeights := InitScorePlugin(redisCli, cfg, pluginRegMap)
+	filterPlugins := InitFilterPlugin(redisCli, cfg, pluginRegMap)
 	return &Scheduler{
-		RedisCli:    redisCli,
-		ScorePlugin: scorePlugin,
-		ScoreWeight: scoreWeight,
+		RedisCli:      redisCli,
+		ScorePlugins:  scorePlugins,
+		ScoreWeights:  scoreWeights,
+		FilterPlugins: filterPlugins,
 	}, nil
 }
 
 func (s *Scheduler) Schedule(ctx context.Context, t *task.Task) (nodeName string, err error) {
-	priorityList, err := s.score(ctx, t)
+	nodeList := ListLiveNode(s.RedisCli)
+	nodeList = s.filter(ctx, nodeList, t)
+	nodeList, err = s.score(ctx, nodeList, t)
 	if err != nil {
 		return "", err
 	}
-	if len(priorityList) == 0 {
+	if len(nodeList) == 0 {
 		return "", fmt.Errorf("no node for scheduling")
 	}
-	return priorityList[0].NodeName, nil
+	return nodeList[0], nil
+}
+
+func ListLiveNode(client *redis.Client) []string {
+	res := []string{}
+	keys, err := client.HKeys(metricscli.MetricsInfoKey).Result()
+	if err != nil {
+		return res
+	}
+	for _, key := range keys {
+		v, err := client.HGet(metricscli.MetricsInfoKey, key).Result()
+		if err != nil {
+			continue
+		}
+		nodeInfo := &metricscli.MetricsInfo{}
+		err = json.Unmarshal([]byte(v), nodeInfo)
+		if err != nil {
+			continue
+		}
+		// 说明主机在线
+		if time.Now().Add(-time.Second*5).Unix() < nodeInfo.TimeStamp {
+			res = append(res, key)
+		}
+	}
+	return res
 }

@@ -12,11 +12,11 @@ import (
 
 const PluginName = "memScore"
 
-type memScore struct {
+type MemScore struct {
 	redisCli *redis.Client
 }
 
-func (b memScore) Score(ctx context.Context, nodeName string, task *task.Task) float64 {
+func (b MemScore) Score(ctx context.Context, nodeName string, task *task.Task) float64 {
 	v, err := b.redisCli.HGet(metricscli.MetricsInfoKey, nodeName).Result()
 	if err != nil {
 		return 0
@@ -24,17 +24,17 @@ func (b memScore) Score(ctx context.Context, nodeName string, task *task.Task) f
 	nodeInfo := &metricscli.MetricsInfo{}
 	err = json.Unmarshal([]byte(v), nodeInfo)
 	logger, _ := util.GetCtxLogger(ctx)
-	logger.WithField(plugin.PluginLogKey, PluginName).Infof(
+	logger.WithField(plugin.PluginLogKey, PluginName).Debugf(
 		"plugin [%+v]: score-%.2f", PluginName, nodeInfo.MemFree)
 	return nodeInfo.CpuRemain
 }
 
-func (b memScore) Name() string {
+func (b MemScore) Name() string {
 	return PluginName
 }
 
 func New(client *redis.Client) plugin.Plugin {
-	return &memScore{
+	return &MemScore{
 		redisCli: client,
 	}
 }

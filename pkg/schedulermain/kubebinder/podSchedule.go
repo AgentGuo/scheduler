@@ -14,11 +14,11 @@ import (
 	"path/filepath"
 )
 
-type kubeBind struct {
+type KubeBind struct {
 	client *kubernetes.Clientset
 }
 
-func (k kubeBind) Bind(t *task.Task, nodeName string) error {
+func (k KubeBind) Bind(t *task.Task, nodeName string) error {
 	if p, ok := t.Detail.(kubequeue.KubeTaskDetails); ok {
 		binding := &v1.Binding{
 			ObjectMeta: metav1.ObjectMeta{Namespace: p.Namespace, Name: p.PodName, UID: types.UID(p.UID)},
@@ -34,14 +34,14 @@ func (k kubeBind) Bind(t *task.Task, nodeName string) error {
 	}
 }
 
-func NewKubeBind() kubeBind {
+func NewKubeBind() KubeBind {
 	kubeConfig := filepath.Join(util.HomeDir(), ".kube", "config")
 	config, err := clientcmd.BuildConfigFromFlags("", kubeConfig)
 	if err != nil {
 		panic(err.Error())
 	}
 	client, err := kubernetes.NewForConfig(config)
-	return kubeBind{
+	return KubeBind{
 		client: client,
 	}
 }

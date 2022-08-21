@@ -1,10 +1,12 @@
 port: 12346
 redis_addr: "10.77.50.214:6379"
 redis_password: "foobared"
-log_level: "InfoLevel"
+log_level: "TraceLevel"
 plugin:
   score:
     - name: "cpuScore"
       weight: 1
     - name: "memScore"
       weight: 1
+  filter:
+    - name: "nodeSelector"

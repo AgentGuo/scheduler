@@ -3,11 +3,12 @@ package task
 const TaskNameLogKey = "task"
 
 type Task struct {
-	Name       string      // task name
-	Status     int         // task status
-	Priority   int         // task priority
-	UpdateTime int64       // last update time stamp
-	Detail     interface{} // detailed information
+	Name       string            // task name
+	Labels     map[string]string // selector labels
+	Status     int               // task status
+	Priority   int               // task priority
+	UpdateTime int64             // last update time stamp
+	Detail     interface{}       // detailed information
 }
 
 func (t Task) Len() int {

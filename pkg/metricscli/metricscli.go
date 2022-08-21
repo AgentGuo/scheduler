@@ -1,13 +1,19 @@
 package metricscli
 
 import (
+	"context"
 	"github.com/AgentGuo/scheduler/cmd/metrics-cli/config"
+	"github.com/AgentGuo/scheduler/util"
 	"github.com/go-redis/redis"
 	"github.com/shirou/gopsutil/cpu"
 	"github.com/shirou/gopsutil/host"
 	"github.com/shirou/gopsutil/mem"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/json"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/clientcmd"
 	"log"
+	"path/filepath"
 	"time"
 )
 
@@ -17,9 +23,10 @@ const (
 )
 
 type MetricsInfo struct {
-	CpuRemain float64 `json:"cpu_remain"`
-	MemFree   float64 `json:"mem_free"`
-	TimeStamp int64   `json:"time_stamp"`
+	CpuRemain float64           `json:"cpu_remain"`
+	MemFree   float64           `json:"mem_free"`
+	Labels    map[string]string `json:"labels"`
+	TimeStamp int64             `json:"time_stamp"`
 }
 
 type NodeInfo struct {
@@ -102,6 +109,7 @@ func emitMetricsInfo(cli *redis.Client) error {
 	var (
 		cpuRemain float64 = 0
 		memFree   float64 = 0
+		labels    map[string]string
 	)
 	go func() {
 		totalPercent, err := cpu.Percent(time.Second, false)
@@ -119,11 +127,20 @@ func emitMetricsInfo(cli *redis.Client) error {
 		}
 		memFree = float64(memStat.Free) / (1024 * 1024)
 	}()
+	go func() {
+		kubeCli := newKubeCli()
+		node, err := kubeCli.CoreV1().Nodes().Get(context.Background(), hostName, metav1.GetOptions{})
+		if err != nil {
+			log.Fatal(err)
+		}
+		labels = node.Labels
+	}()
 	time.Sleep(2 * time.Second)
 	log.Printf("%s: cpu remaining amount(mCPU): %.2f m, mem free: %.2f MB\n", hostName, cpuRemain, memFree)
 	v, _ := json.Marshal(MetricsInfo{
 		CpuRemain: cpuRemain,
 		MemFree:   memFree,
+		Labels:    labels,
 		TimeStamp: time.Now().Unix(),
 	})
 	err := cli.HSet(MetricsInfoKey, hostName, v).Err()
@@ -131,4 +148,14 @@ func emitMetricsInfo(cli *redis.Client) error {
 		log.Fatal(err)
 	}
 	return err
+}
+
+func newKubeCli() *kubernetes.Clientset {
+	kubeConfig := filepath.Join(util.HomeDir(), ".kube", "config")
+	config, err := clientcmd.BuildConfigFromFlags("", kubeConfig)
+	if err != nil {
+		panic(err.Error())
+	}
+	client, err := kubernetes.NewForConfig(config)
+	return client
 }

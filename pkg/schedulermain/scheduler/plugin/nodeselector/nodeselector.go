@@ -1,4 +1,4 @@
-package cpuscore
+package nodeselector
 
 import (
 	"context"
@@ -10,31 +10,41 @@ import (
 	"k8s.io/apimachinery/pkg/util/json"
 )
 
-const PluginName = "cpuScore"
+const PluginName = "nodeSelector"
 
-type CpuScore struct {
+type NodeSelector struct {
 	redisCli *redis.Client
 }
 
-func (b CpuScore) Score(ctx context.Context, nodeName string, task *task.Task) float64 {
-	v, err := b.redisCli.HGet(metricscli.MetricsInfoKey, nodeName).Result()
+func (n NodeSelector) Name() string {
+	return PluginName
+}
+
+func (n NodeSelector) Filter(ctx context.Context, nodeName string, t *task.Task) bool {
+	res := true
+	v, err := n.redisCli.HGet(metricscli.MetricsInfoKey, nodeName).Result()
 	if err != nil {
-		return 0
+		return false
 	}
 	nodeInfo := &metricscli.MetricsInfo{}
 	err = json.Unmarshal([]byte(v), nodeInfo)
 	logger, _ := util.GetCtxLogger(ctx)
+	for label, value := range t.Labels {
+		if v, ok := nodeInfo.Labels[label]; ok {
+			if v != value {
+				res = false
+			}
+		} else {
+			res = false
+		}
+	}
 	logger.WithField(plugin.PluginLogKey, PluginName).Debugf(
-		"plugin [%+v]: score-%.2f", PluginName, nodeInfo.CpuRemain)
-	return nodeInfo.CpuRemain
-}
-
-func (b CpuScore) Name() string {
-	return PluginName
+		"plugin [%+v]: filter result-%+v", PluginName, res)
+	return res
 }
 
 func New(client *redis.Client) plugin.Plugin {
-	return &CpuScore{
+	return &NodeSelector{
 		redisCli: client,
 	}
 }

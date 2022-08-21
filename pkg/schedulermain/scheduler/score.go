@@ -2,53 +2,51 @@ package scheduler
 
 import (
 	"context"
-	"github.com/AgentGuo/scheduler/pkg/metricscli"
 	"github.com/AgentGuo/scheduler/pkg/schedulermain/task"
 	"github.com/AgentGuo/scheduler/util"
 	"sort"
 	"sync"
 )
 
-type NodeScore struct {
+type nodeScore struct {
 	NodeName string
 	Score    float64
 }
 
-func (s *Scheduler) score(ctx context.Context, t *task.Task) ([]NodeScore, error) {
-	// step1 获取所有节点
-	keys, err := s.RedisCli.HKeys(metricscli.MetricsInfoKey).Result()
-	if err != nil {
-		return nil, err
-	}
+func (s *Scheduler) score(ctx context.Context, nodeList []string, t *task.Task) ([]string, error) {
 	m := &sync.Map{}
 	scoreMap := map[string]float64{}
-	for i, scoreP := range s.ScorePlugin {
+	for i, scoreP := range s.ScorePlugins {
 		// step2 遍历每个节点 运行每个score plugin
 		wg := &sync.WaitGroup{}
-		for i := range keys {
+		for i := range nodeList {
 			wg.Add(1)
 			go func(nodeName string, group *sync.WaitGroup) {
 				defer group.Done()
 				nodeScore := scoreP.Score(ctx, nodeName, t)
 				m.Store(nodeName, nodeScore)
-			}(keys[i], wg)
+			}(nodeList[i], wg)
 		}
 		wg.Wait()
 		// step3 分数正则化后按权重聚合
-		addScore(m, scoreMap, s.ScoreWeight[i])
+		addScore(m, scoreMap, s.ScoreWeights[i])
 	}
 	// step4 排序得到调度优先节点列表
-	priorityList := []NodeScore{}
+	priorityList := []nodeScore{}
 	for nodeName, score := range scoreMap {
 		priorityList = append(priorityList,
-			NodeScore{NodeName: nodeName, Score: score})
+			nodeScore{NodeName: nodeName, Score: score})
 	}
 	sort.SliceStable(priorityList, func(i, j int) bool {
 		return priorityList[i].Score > priorityList[j].Score
 	})
 	logger, _ := util.GetCtxLogger(ctx)
 	logger.Infof("node score rank: %+v", priorityList)
-	return priorityList, nil
+	nodeList = make([]string, len(priorityList))
+	for i := range priorityList {
+		nodeList[i] = priorityList[i].NodeName
+	}
+	return nodeList, nil
 }
 
 // addScore 聚合每一次插件打分的结果

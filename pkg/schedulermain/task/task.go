@@ -1,5 +1,7 @@
 package task
 
+const TaskNameLogKey = "task"
+
 type Task struct {
 	Name       string      // task name
 	Status     int         // task status

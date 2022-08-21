@@ -2,9 +2,10 @@
 package app
 
 import (
+	"context"
 	"github.com/AgentGuo/scheduler/cmd/scheduler-main/config"
 	"github.com/AgentGuo/scheduler/pkg/schedulermain"
-	"log"
+	"github.com/AgentGuo/scheduler/util"
 	"os"
 
 	"github.com/spf13/cobra"
@@ -24,11 +25,14 @@ to quickly create a Cobra application.`,
 		// Uncomment the following line if your bare application
 		// has an action associated with it:
 		Run: func(cmd *cobra.Command, args []string) {
-			config, err := config.ReadConfig(configFilePath)
+			cfg, err := config.ReadConfig(configFilePath)
 			if err != nil {
-				log.Fatal(err)
+				panic(err)
 			}
-			schedulermain.RunSchedulerMain(config)
+			logger := util.InitLog(cfg)
+			ctx := context.Background()
+			ctx = util.SetCtxLogger(ctx, logger)
+			schedulermain.RunSchedulerMain(ctx, cfg)
 		},
 	}
 	configFilePath string

@@ -1,3 +1,10 @@
 port: 12346
-redis_addr: "192.168.247.133:6379"
+redis_addr: "10.77.50.214:6379"
 redis_password: "foobared"
+log_level: "InfoLevel"
+plugin:
+  score:
+    - name: "cpuScore"
+      weight: 1
+    - name: "memScore"
+      weight: 1

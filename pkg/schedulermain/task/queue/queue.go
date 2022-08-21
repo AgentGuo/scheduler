@@ -1,7 +1,7 @@
 package queue
 
 import (
-	"github.com/AgentGuo/scheduler/task"
+	"github.com/AgentGuo/scheduler/pkg/schedulermain/task"
 )
 
 // TaskQueue priority queue for task scheduling, it is not thread safe

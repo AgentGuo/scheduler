@@ -1,63 +1,65 @@
 package schedulermain
 
 import (
+	"context"
+	"fmt"
 	"github.com/AgentGuo/scheduler/cmd/scheduler-main/config"
-	"github.com/AgentGuo/scheduler/pkg/schedulermain/binder"
 	"github.com/AgentGuo/scheduler/pkg/schedulermain/kubebinder"
-	"github.com/AgentGuo/scheduler/pkg/schedulermain/schedule"
-	"github.com/AgentGuo/scheduler/task/kubequeue"
-	"github.com/AgentGuo/scheduler/task/queue"
-	"log"
+	"github.com/AgentGuo/scheduler/pkg/schedulermain/scheduler"
+	"github.com/AgentGuo/scheduler/pkg/schedulermain/task"
+	"github.com/AgentGuo/scheduler/pkg/schedulermain/task/kubequeue"
+	"github.com/AgentGuo/scheduler/pkg/schedulermain/task/queue"
+	"github.com/AgentGuo/scheduler/util"
 	"time"
 )
 
 type SchedulerMain struct {
 	ScheduleQ queue.ScheduleQueue
-	Binder    binder.Binder
-	Scheduler *schedule.Scheduler
+	Binder    Binder
+	Scheduler *scheduler.Scheduler
 }
 
 const taskInfoKey = "taskInfo"
 
-func NewSchedulerMain(config *config.SchedulerMainConfig) (*SchedulerMain, error) {
-	Scheduler, err := schedule.NewScheduler(config)
+func NewSchedulerMain(ctx context.Context, config *config.SchedulerMainConfig) (*SchedulerMain, error) {
+	Scheduler, err := scheduler.NewScheduler(config)
 	if err != nil {
-		log.Fatal(err)
 		return nil, err
 	}
 	return &SchedulerMain{
-		ScheduleQ: kubequeue.NewKubeQueue(),
+		ScheduleQ: kubequeue.NewKubeQueue(ctx),
 		Binder:    kubebinder.NewKubeBind(),
 		Scheduler: Scheduler,
 	}, nil
 }
 
-func RunSchedulerMain(config *config.SchedulerMainConfig) {
-	log.Println("hello, i am scheduler main! this is the config file")
-	log.Printf("%+v\n", config)
-	s, err := NewSchedulerMain(config)
+func RunSchedulerMain(ctx context.Context, config *config.SchedulerMainConfig) {
+	fmt.Printf("hello, i am scheduler main! this is the config file\n%+v\n", config)
+	logger, _ := util.GetCtxLogger(ctx)
+	s, err := NewSchedulerMain(ctx, config)
 	if err != nil {
-		log.Fatal(err)
+		logger.Fatalf("new scheduler failed, err:%+v", err)
 		return
 	}
 	for {
 		t := s.ScheduleQ.GetTask()
 		if t != nil {
-			log.Printf("unscheduled task: %s\n", t.Name)
+			util.SetCtxFields(ctx, map[string]string{task.TaskNameLogKey: t.Name})
+			scheLogger, _ := util.GetCtxLogger(ctx)
 			if t.Name == "pause-default" { // 测试用的逻辑
-				node, err := s.Scheduler.Schedule(t)
+				node, err := s.Scheduler.Schedule(ctx, t)
 				if err != nil {
-					log.Fatal(err)
+					scheLogger.Errorf("schedule failed:%+v", err)
 					continue
 				}
 				err = s.Binder.Bind(t, node)
 				if err != nil {
-					log.Fatal(err)
+					scheLogger.Errorf("bind failed:%+v", err)
 					continue
 				}
 				err = s.Scheduler.RedisCli.HSet(taskInfoKey, t.Name, node).Err()
 				if err != nil {
-					log.Fatal(err)
+					scheLogger.Errorf("task schedule result write failed:%+v", err)
 				}
 			}
 		}

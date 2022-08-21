@@ -23,4 +23,6 @@ redis存储内容：
 | taskInfo    | {podName}-{namespace} | 调度结果信息     |
 
 ---
-目前实现了简易的单体调度器...
+TODO:
+- [ ] 亲和性
+- [ ] 插件化

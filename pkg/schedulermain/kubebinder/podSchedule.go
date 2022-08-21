@@ -3,8 +3,8 @@ package kubebinder
 import (
 	"context"
 	"fmt"
-	"github.com/AgentGuo/scheduler/task"
-	"github.com/AgentGuo/scheduler/task/kubequeue"
+	"github.com/AgentGuo/scheduler/pkg/schedulermain/task"
+	"github.com/AgentGuo/scheduler/pkg/schedulermain/task/kubequeue"
 	"github.com/AgentGuo/scheduler/util"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

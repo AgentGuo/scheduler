@@ -59,7 +59,7 @@ func changeLimitInKubeByResource(resource string, changeFile string, target *api
 		if oldValue, errw = util.WriteIntToFile(path, changeData); errw != nil {
 			return oldValue, errw
 		} else {
-			log.Printf("Modify %s limit success.\n", resource)
+			log.Printf("modify %s limit success.\n", resource)
 		}
 	} else {
 		if err != nil {
@@ -71,7 +71,7 @@ func changeLimitInKubeByResource(resource string, changeFile string, target *api
 			if oldValue, errw = util.WriteIntToFile(path, changeData); errw != nil {
 				return oldValue, errw
 			} else {
-				log.Printf("Modify %s limit success.\n", resource)
+				log.Printf("modify %s limit success.\n", resource)
 			}
 		} else {
 			if err1 != nil {

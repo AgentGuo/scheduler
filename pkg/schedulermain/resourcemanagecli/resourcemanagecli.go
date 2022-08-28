@@ -1,6 +1,7 @@
 package resourcemanagecli
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net/rpc"
@@ -8,14 +9,14 @@ import (
 	"strings"
 
 	"github.com/AgentGuo/scheduler/pkg/resourcemanage/apis"
-	"github.com/AgentGuo/scheduler/task"
+	"github.com/AgentGuo/scheduler/pkg/schedulermain/task"
 )
 
 type ResourceClient struct {
 	port int
 }
 
-func (rc *ResourceClient) Execute(t *task.Task, hostIP string) error {
+func (rc *ResourceClient) Execute(ctx context.Context, t *task.Task, hostIP string) error {
 	args := apis.ResourceModifyArgs{}
 	reply := apis.ResourceModifyReply{}
 

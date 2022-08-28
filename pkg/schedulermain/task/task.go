@@ -1,6 +1,8 @@
 package task
 
 const (
+	TaskNameLogKey = "task"
+
 	// task type
 	KubeResourceTaskType string = "KubeResourceTask"
 	ResourceTaskType     string = "ResourceTask"
@@ -13,14 +15,15 @@ const (
 )
 
 type Task struct {
-	Name           string      `json:"Name"`           // task name
-	Status         string      `json:"Status"`         // task status
-	Priority       int         `json:"Priority"`       // task priority
-	UpdateTime     int64       `json:"UpdateTime"`     // last update time stamp
-	TaskType       string      `json:"TaskType"`       // task type
-	NodeName       string      `json:"NodeName"`       // run on
-	Detail         interface{} `json:"Detail"`         // detailed information
-	ResourceDetail interface{} `json:"ResourceDetail"` // resource information
+	Name           string            `json:"Name"` // task name
+	Labels         map[string]string // selector labels
+	Status         string            `json:"Status"`         // task status
+	Priority       int               `json:"Priority"`       // task priority
+	UpdateTime     int64             `json:"UpdateTime"`     // last update time stamp
+	TaskType       string            `json:"TaskType"`       // task type
+	NodeName       string            `json:"NodeName"`       // run on
+	Detail         interface{}       `json:"Detail"`         // detailed information
+	ResourceDetail interface{}       `json:"ResourceDetail"` // resource information
 }
 
 func (t Task) Len() int {

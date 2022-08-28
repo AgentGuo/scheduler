@@ -1,7 +1,7 @@
-package schedule
+package scheduler
 
 import (
-	"encoding/json"
+	"context"
 	"fmt"
 	"log"
 	"time"
@@ -10,43 +10,54 @@ import (
 	"github.com/AgentGuo/scheduler/pkg/metricscli"
 	"github.com/AgentGuo/scheduler/pkg/resourcemanage/apis"
 	"github.com/AgentGuo/scheduler/pkg/schedulermain/resourcemanagecli"
-	"github.com/AgentGuo/scheduler/task"
-	"github.com/AgentGuo/scheduler/task/kubequeue"
+	"github.com/AgentGuo/scheduler/pkg/schedulermain/scheduler/plugin"
+	"github.com/AgentGuo/scheduler/pkg/schedulermain/task"
+	"github.com/AgentGuo/scheduler/pkg/schedulermain/task/kubequeue"
 	"github.com/go-redis/redis"
+	"k8s.io/apimachinery/pkg/util/json"
 )
 
 type Scheduler struct {
 	RedisCli       *redis.Client
+	ScorePlugins   []plugin.ScorePlugin
+	ScoreWeights   []float64
+	FilterPlugins  []plugin.FilterPlugin
 	ResourceClient *resourcemanagecli.ResourceClient
 }
 
-func NewScheduler(config *config.SchedulerMainConfig) (*Scheduler, error) {
+func NewScheduler(cfg *config.SchedulerMainConfig) (*Scheduler, error) {
 	redisCli := redis.NewClient(&redis.Options{
-		Addr:     config.RedisAddr,
-		Password: config.RedisPassword,
+		Addr:     cfg.RedisAddr,
+		Password: cfg.RedisPassword,
 	})
 	_, err := redisCli.Ping().Result()
 	if err != nil {
-		log.Fatal(err)
 		return nil, err
 	}
-
+	pluginRegMap := GetRegistryMap()
+	scorePlugins, scoreWeights := InitScorePlugin(redisCli, cfg, pluginRegMap)
+	filterPlugins := InitFilterPlugin(redisCli, cfg, pluginRegMap)
 	return &Scheduler{
 		RedisCli:       redisCli,
-		ResourceClient: resourcemanagecli.NewResourceClient(config.ResourceManagerPort),
+		ScorePlugins:   scorePlugins,
+		ScoreWeights:   scoreWeights,
+		FilterPlugins:  filterPlugins,
+		ResourceClient: resourcemanagecli.NewResourceClient(cfg.ResourceManagerPort),
 	}, nil
 }
 
-func (s *Scheduler) Schedule(t *task.Task) (string, error) {
+func (s *Scheduler) Schedule(ctx context.Context, t *task.Task) (nodeName string, err error) {
 	if t.TaskType == task.NormalTaskType {
-		priorityList, err := s.score()
+		nodeList := ListLiveNode(s.RedisCli)
+		nodeList = s.filter(ctx, nodeList, t)
+		nodeList, err = s.score(ctx, nodeList, t)
 		if err != nil {
 			return "", err
 		}
-		if len(priorityList) == 0 {
+		if len(nodeList) == 0 {
 			return "", fmt.Errorf("no node for scheduling")
 		}
-		return priorityList[0].NodeName, nil
+		return nodeList[0], nil
 	} else if t.TaskType == task.KubeResourceTaskType {
 		// hostName := s.FindHostNameByTaskName(t.Name)
 		// if hostName == "" {
@@ -55,10 +66,36 @@ func (s *Scheduler) Schedule(t *task.Task) (string, error) {
 		// return hostName, nil
 		return "", nil
 	}
+
 	return "", fmt.Errorf("wrong task type")
 }
 
-func (s *Scheduler) ExecuteResourceT(t *task.Task) error {
+func ListLiveNode(client *redis.Client) []string {
+	res := []string{}
+	keys, err := client.HKeys(metricscli.MetricsInfoKey).Result()
+	if err != nil {
+		return res
+	}
+	for _, key := range keys {
+		v, err := client.HGet(metricscli.MetricsInfoKey, key).Result()
+		if err != nil {
+			continue
+		}
+		nodeInfo := &metricscli.MetricsInfo{}
+		err = json.Unmarshal([]byte(v), nodeInfo)
+		if err != nil {
+			continue
+		}
+		// 说明主机在线
+		if time.Now().Add(-time.Second*5).Unix() < nodeInfo.TimeStamp {
+			res = append(res, key)
+		}
+	}
+	return res
+}
+
+func (s *Scheduler) ExecuteResourceT(ctx context.Context, t *task.Task) error {
+	// logger, _ := util.GetCtxLogger(ctx)
 	taskInfo := s.FindTaskInfoByTaskName(t.Name)
 	if taskInfo == nil {
 		return fmt.Errorf("not found TaskInfo by taskName{%s}", t.Name)
@@ -101,7 +138,7 @@ func (s *Scheduler) ExecuteResourceT(t *task.Task) error {
 		checkInfo.NewCpuLimit = kubeDetail.CpuLimit
 		checkInfo.NewMemLimit = kubeDetail.MemoryLimit
 		// check resource
-		err := s.checkReource(nodeInfo, metricsInfo, checkInfo)
+		err := s.checkReource(ctx, nodeInfo, metricsInfo, checkInfo)
 		if err != nil {
 			return err
 		}
@@ -109,7 +146,7 @@ func (s *Scheduler) ExecuteResourceT(t *task.Task) error {
 		// TODO
 	}
 
-	err := s.ResourceClient.Execute(t, nodeInfo.HostIP)
+	err := s.ResourceClient.Execute(ctx, t, nodeInfo.HostIP)
 	if err != nil {
 		return err
 	}

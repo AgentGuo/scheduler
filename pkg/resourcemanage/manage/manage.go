@@ -4,7 +4,7 @@ import (
 	"log"
 
 	"github.com/AgentGuo/scheduler/pkg/resourcemanage/apis"
-	"github.com/AgentGuo/scheduler/task"
+	"github.com/AgentGuo/scheduler/pkg/schedulermain/task"
 )
 
 type PlatformManager interface {
@@ -24,8 +24,9 @@ func (m *Manager) ChangeResourceLimit(args *apis.ResourceModifyArgs, reply *apis
 	switch args.Type {
 	case task.KubeResourceTaskType:
 		kubeTask := apis.KubeResourceTask{
-			PodName: args.PodName,
-			PodUid:  args.PodUid,
+			PodName:   args.PodName,
+			PodUid:    args.PodUid,
+			Namespace: args.NameSpace,
 			ResourceTask: apis.ResourceTask{
 				ContainerName: args.ContainerName,
 				ContainerId:   args.ContainerId,

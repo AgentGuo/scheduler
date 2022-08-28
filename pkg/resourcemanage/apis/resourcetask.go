@@ -10,12 +10,12 @@ const (
 )
 
 type ResourceValue struct { // bytes
-	CpuLimit    int64 `json:"CpuLimit"`    // 单位为m
-	MemoryLimit int64 `json:"MemoryLimit"` // 单位为byte
+	CpuLimit    int64 `json:"CpuLimit" yaml:"CpuLimit"`       // 单位为m
+	MemoryLimit int64 `json:"MemoryLimit" yaml:"MemoryLimit"` // 单位为byte
 }
 
 type ResourceTask struct {
-	ContainerName string `json:"ContainerName"`
-	ContainerId   string `json:"ContainerId"`
+	ContainerName string `json:"ContainerName" yaml:"ContainerName"`
+	ContainerId   string `json:"ContainerId" yaml:"ContainerId"`
 	ResourceValue
 }

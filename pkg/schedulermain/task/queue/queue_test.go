@@ -2,7 +2,7 @@ package queue
 
 import (
 	"container/heap"
-	"github.com/AgentGuo/scheduler/task"
+	"github.com/AgentGuo/scheduler/pkg/schedulermain/task"
 	"reflect"
 	"testing"
 )

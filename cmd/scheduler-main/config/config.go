@@ -9,10 +9,26 @@ import (
 
 // SchedulerMainConfig binder-main config
 type SchedulerMainConfig struct {
-	Port                int    `yaml:"port"` // server port
-	RedisAddr           string `yaml:"redis_addr"`
-	RedisPassword       string `yaml:"redis_password"`
-	ResourceManagerPort int    `yaml:"resource_manager_port"`
+	Port                int          `yaml:"port"` // server port
+	RedisAddr           string       `yaml:"redis_addr"`
+	RedisPassword       string       `yaml:"redis_password"`
+	ResourceManagerPort int          `yaml:"resource_manager_port"`
+	LogLevel            string       `yaml:"log_level"`
+	Plugin              PluginConfig `yaml:"plugin"`
+}
+
+type PluginConfig struct {
+	Filter []*FilterPlugin `yaml:"filter"`
+	Score  []*ScorePlugin  `yaml:"score"`
+}
+
+type ScorePlugin struct {
+	Name   string  `yaml:"name"`
+	Weight float64 `yaml:"weight"`
+}
+
+type FilterPlugin struct {
+	Name string `yaml:"name"`
 }
 
 func ReadConfig(configFilePath string) (*SchedulerMainConfig, error) {

@@ -1,6 +1,7 @@
-package schedule
+package scheduler
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/AgentGuo/scheduler/pkg/metricscli"
@@ -13,7 +14,7 @@ type CheckReourceInfo struct {
 	NewMemLimit int64
 }
 
-func (s *Scheduler) checkReource(nodeInfo *metricscli.NodeInfo, metricsInfo *metricscli.MetricsInfo, checkReourceInfo *CheckReourceInfo) error {
+func (s *Scheduler) checkReource(ctx context.Context, nodeInfo *metricscli.NodeInfo, metricsInfo *metricscli.MetricsInfo, checkReourceInfo *CheckReourceInfo) error {
 	if !checkCpu(nodeInfo, metricsInfo, checkReourceInfo) {
 		return fmt.Errorf("check Cpu failed")
 	}

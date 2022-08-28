@@ -1,0 +1,7 @@
+PodName: test
+PodUid: testUid
+Namespace: testspace
+ContainerName: testC
+ContainerId: testCUid
+CpuLimit: -2
+MemoryLimit: -2

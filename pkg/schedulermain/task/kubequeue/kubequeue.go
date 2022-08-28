@@ -2,16 +2,17 @@ package kubequeue
 
 import (
 	"container/heap"
+	"context"
 	"fmt"
-	"log"
 	"path/filepath"
 	"sync"
 	"time"
 
 	"github.com/AgentGuo/scheduler/pkg/resourcemanage/apis"
-	"github.com/AgentGuo/scheduler/task"
-	"github.com/AgentGuo/scheduler/task/queue"
+	"github.com/AgentGuo/scheduler/pkg/schedulermain/task"
+	"github.com/AgentGuo/scheduler/pkg/schedulermain/task/queue"
 	"github.com/AgentGuo/scheduler/util"
+	"github.com/sirupsen/logrus"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/informers"
@@ -19,6 +20,8 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/clientcmd"
 )
+
+var logger *logrus.Entry
 
 type KubeQueue struct {
 	rw *sync.RWMutex
@@ -31,7 +34,9 @@ type KubeTaskDetails struct {
 	UID       string `json:"UID"`
 }
 
-func NewKubeQueue() *KubeQueue {
+func NewKubeQueue(ctx context.Context) *KubeQueue {
+	// init logger
+	logger, _ = util.GetCtxLogger(ctx)
 	kq := &KubeQueue{
 		rw: &sync.RWMutex{},
 		q:  &queue.TaskQueue{},
@@ -65,10 +70,10 @@ func NewKubeQueue() *KubeQueue {
 					// it's assigned or not.
 					return true
 				}
-				log.Fatal(fmt.Errorf("unable to convert object %T to *v1.Pod", obj))
+				logger.Debugf("unable to convert object %T to *v1.Pod", obj)
 				return false
 			default:
-				log.Fatal(fmt.Errorf("unable to convert object %T to *v1.Pod", obj))
+				logger.Debugf("unable to convert object %T to *v1.Pod", obj)
 				return false
 			}
 		},
@@ -99,18 +104,19 @@ func (k KubeQueue) GetTask() *task.Task {
 	}
 }
 
-func (k KubeQueue) SubmitTask(task task.Task) {
+func (k KubeQueue) SubmitTask(task task.Task) error {
 	k.rw.RLock()
 	defer k.rw.RUnlock()
 
 	k.q.Push(task)
+	return nil
 }
 
 func (k *KubeQueue) addPodToSchedulingQueue(obj interface{}) {
 	k.rw.Lock()
 	defer k.rw.Unlock()
 	pod := obj.(*v1.Pod)
-	log.Printf("Add event for unscheduled pod: %s\n", pod.Name)
+	logger.Debugf("add event for unscheduled pod: %s\n", pod.Name)
 	k.q.Push(task.Task{
 		Name:     pod.Name + "-" + pod.Namespace,
 		Status:   task.PENDING,
@@ -129,12 +135,12 @@ func (k *KubeQueue) addPodToSchedulingQueue(obj interface{}) {
 
 func (k *KubeQueue) updatePodInSchedulingQueue(oldObj, newObj interface{}) {
 	oldPod, newPod := oldObj.(*v1.Pod), newObj.(*v1.Pod)
-	log.Printf("Update event for pod, old pod: %s, new pod: %s\n", oldPod.Name, newPod.Name)
+	logger.Debugf("update event for pod, old pod: %s, new pod: %s\n", oldPod.Name, newPod.Name)
 }
 
 func (k *KubeQueue) deletePodFromSchedulingQueue(obj interface{}) {
 	pod := obj.(*v1.Pod)
-	log.Printf("Delete event for pod: %s\n", pod.Name)
+	logger.Debugf("delete event for pod: %s\n", pod.Name)
 }
 
 func getPodCpuLimits(pod *v1.Pod) int64 {

@@ -48,4 +48,7 @@ task{
 2.资源任务执行成功, 将KubeResourceTask中的资源限制更新到taskInfo中的ResourceValue。
 ```
 ---
-目前实现了简易的单体调度器...
+TODO:
+- [x] 节点标签
+- [x] 插件化
+- [ ] 更新一下文档

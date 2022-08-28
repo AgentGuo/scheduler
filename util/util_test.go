@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/AgentGuo/scheduler/pkg/resourcemanage/apis"
-	"github.com/AgentGuo/scheduler/task"
+	"github.com/AgentGuo/scheduler/pkg/schedulermain/task"
 	"github.com/AgentGuo/scheduler/util"
 	"github.com/shirou/gopsutil/cpu"
 	"github.com/shirou/gopsutil/mem"

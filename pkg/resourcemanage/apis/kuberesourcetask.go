@@ -19,9 +19,9 @@ const (
 )
 
 type KubeResourceTask struct {
-	PodName   string `json:"PodName"`
-	PodUid    string `json:"PodUid"`
-	Namespace string `json:"Namespace"`
+	PodName   string `json:"PodName" yaml:"PodName"`
+	PodUid    string `json:"PodUid" yaml:"PodUid"`
+	Namespace string `json:"Namespace" yaml:"Namespace"`
 	ResourceTask
 }
 

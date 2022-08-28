@@ -2,13 +2,12 @@
 package app
 
 import (
-	"context"
 	"os"
 
-	"github.com/AgentGuo/scheduler/cmd/scheduler-main/config"
+	"github.com/AgentGuo/scheduler/cmd/submit-resourcetask/config"
+	"github.com/AgentGuo/scheduler/pkg/resourcemanage/apis"
 	"github.com/AgentGuo/scheduler/pkg/schedulermain"
-	"github.com/AgentGuo/scheduler/util"
-
+	"github.com/AgentGuo/scheduler/pkg/schedulermain/task"
 	"github.com/spf13/cobra"
 )
 
@@ -30,10 +29,24 @@ to quickly create a Cobra application.`,
 			if err != nil {
 				panic(err)
 			}
-			logger := util.InitLog(cfg)
-			ctx := context.Background()
-			ctx = util.SetCtxLogger(ctx, logger)
-			schedulermain.RunSchedulerMain(ctx, cfg)
+			schedulermain.SubmitResourceTask(task.Task{
+				Name:     cfg.PodName + "-" + cfg.Namespace,
+				Status:   task.PENDING,
+				TaskType: task.KubeResourceTaskType,
+				Detail: apis.KubeResourceTask{
+					PodName:   cfg.PodName,
+					PodUid:    cfg.PodUid,
+					Namespace: cfg.Namespace,
+					ResourceTask: apis.ResourceTask{
+						ContainerName: cfg.ContainerName,
+						ContainerId:   cfg.ContainerId,
+						ResourceValue: apis.ResourceValue{
+							CpuLimit:    cfg.CpuLimit,
+							MemoryLimit: cfg.MemoryLimit,
+						},
+					},
+				},
+			})
 		},
 	}
 	configFilePath string

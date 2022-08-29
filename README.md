@@ -60,3 +60,4 @@ spec:
     imagePullPolicy: IfNotPresent
   restartPolicy: Always
 ```
+![img.png](img/img.png)

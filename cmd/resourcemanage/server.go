@@ -1,4 +1,4 @@
-package resourcemanage
+package main
 
 import (
 	"github.com/AgentGuo/scheduler/cmd/resourcemanage/app"

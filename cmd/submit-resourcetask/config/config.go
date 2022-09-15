@@ -17,6 +17,7 @@ type ResourceTaskConfig struct {
 	ContainerId   string `yaml:"ContainerId"`
 	CpuLimit      int64  `yaml:"CpuLimit"`
 	MemoryLimit   int64  `yaml:"MemoryLimit"`
+	NodeName      string `yaml:"NodeName"`
 }
 
 func ReadConfig(configFilePath string) (*ResourceTaskConfig, error) {

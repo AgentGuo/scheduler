@@ -11,3 +11,4 @@ plugin:
   filter:
     - name: "nodeSelector"
 resource_manager_port: 12351
+resource_queue_server_port: 12352

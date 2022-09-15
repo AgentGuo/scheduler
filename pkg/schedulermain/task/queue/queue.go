@@ -38,3 +38,14 @@ type ScheduleQueue interface {
 	GetTask() *task.Task
 	SubmitTask(task.Task) error
 }
+
+type ScheduleQueueList []ScheduleQueue
+
+func (s ScheduleQueueList) GetListTask() *task.Task {
+	for _, q := range s {
+		if t := q.GetTask(); t != nil {
+			return t
+		}
+	}
+	return nil
+}

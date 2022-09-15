@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"reflect"
 	"time"
 
 	"github.com/AgentGuo/scheduler/cmd/scheduler-main/config"
@@ -130,15 +131,21 @@ func (s *Scheduler) ExecuteResourceT(ctx context.Context, t *task.Task) error {
 
 	// kubernetes type
 	if t.TaskType == task.KubeResourceTaskType {
-		kubeDetail, ok := t.Detail.(apis.KubeResourceTask)
-		if !ok {
+		kubeDetail := &apis.KubeResourceTask{}
+		detail, ok := t.Detail.(string)
+		if !ok{
+			fmt.Printf("%+v\n%+v\n", t.Detail, reflect.TypeOf(t.Detail))
 			return fmt.Errorf("t.Detail can not convert to KubeResourceTask")
 		}
-
+		err := json.Unmarshal([]byte(detail), kubeDetail)
+		if err != nil {
+			return fmt.Errorf("t.Detail can not convert to KubeResourceTask, err:%+v", err)
+		}
+		t.Detail = kubeDetail
 		checkInfo.NewCpuLimit = kubeDetail.CpuLimit
 		checkInfo.NewMemLimit = kubeDetail.MemoryLimit
 		// check resource
-		err := s.checkReource(ctx, nodeInfo, metricsInfo, checkInfo)
+		err = s.checkReource(ctx, nodeInfo, metricsInfo, checkInfo)
 		if err != nil {
 			return err
 		}
@@ -188,8 +195,8 @@ func (s *Scheduler) FindTaskInfoByTaskName(taskName string) *task.Task {
 		return nil
 	}
 	taskInfo.ResourceDetail = apis.ResourceValue{
-		CpuLimit:    int64(tm["CpuLimit"].(float64)),
-		MemoryLimit: int64(tm["MemoryLimit"].(float64)),
+		CpuLimit:    tm["CpuLimit"].(int64),
+		MemoryLimit: tm["MemoryLimit"].(int64),
 	}
 	tm, ok = taskInfo.Detail.(map[string]interface{})
 	if !ok {

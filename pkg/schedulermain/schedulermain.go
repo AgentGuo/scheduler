@@ -18,23 +18,28 @@ import (
 )
 
 type SchedulerMain struct {
-	ScheduleQ queue.ScheduleQueue
-	Binder    Binder
-	Scheduler *scheduler.Scheduler
+	ScheduleQueueList queue.ScheduleQueueList
+	Binder            Binder
+	Scheduler         *scheduler.Scheduler
 }
-
-var rq queue.ScheduleQueue
 
 func NewSchedulerMain(ctx context.Context, config *config.SchedulerMainConfig) (*SchedulerMain, error) {
 	Scheduler, err := scheduler.NewScheduler(config)
 	if err != nil {
 		return nil, err
 	}
-	rq = *resourcequeue.NewResourceQueue(ctx)
+	rq, err := resourcequeue.NewResourceQueue(ctx, config.ResourceQueueServerPort)
+	if err != nil {
+		return nil, err
+	}
+	kq, err := kubequeue.NewKubeQueue(ctx)
+	if err != nil {
+		return nil, err
+	}
 	return &SchedulerMain{
-		ScheduleQ: kubequeue.NewKubeQueue(ctx),
-		Binder:    kubebinder.NewKubeBind(),
-		Scheduler: Scheduler,
+		ScheduleQueueList: []queue.ScheduleQueue{rq, kq},
+		Binder:            kubebinder.NewKubeBind(),
+		Scheduler:         Scheduler,
 	}, nil
 }
 
@@ -47,11 +52,7 @@ func RunSchedulerMain(ctx context.Context, config *config.SchedulerMainConfig) {
 		return
 	}
 	for {
-		t := rq.GetTask()
-		if t == nil {
-			t = s.ScheduleQ.GetTask()
-		}
-
+		t := s.ScheduleQueueList.GetListTask()
 		if t != nil {
 			scheLogger, _ := util.GetCtxLogger(ctx)
 			if t.TaskType == task.NormalTaskType {
@@ -96,12 +97,4 @@ func RunSchedulerMain(ctx context.Context, config *config.SchedulerMainConfig) {
 			time.Sleep(time.Second)
 		}
 	}
-}
-
-func SubmitResourceTask(t task.Task) error {
-	_, ok := rq.(resourcequeue.ResourceQueue)
-	if rq == nil || !ok {
-		return fmt.Errorf("resource queue is nil or wrong type")
-	}
-	return rq.SubmitTask(t)
 }

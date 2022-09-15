@@ -2,27 +2,47 @@ package resourcequeue
 
 import (
 	"context"
+	"fmt"
+	"net"
+	"net/rpc"
 	"sync"
 
 	"github.com/AgentGuo/scheduler/pkg/schedulermain/task"
 	"github.com/AgentGuo/scheduler/pkg/schedulermain/task/queue"
-	"github.com/AgentGuo/scheduler/util"
-	"github.com/sirupsen/logrus"
 )
 
-var logger *logrus.Entry
+var rq *ResourceQueue
 
 type ResourceQueue struct {
 	rw *sync.RWMutex
 	q  *queue.TaskQueue
 }
 
-func NewResourceQueue(ctx context.Context) *ResourceQueue {
-	logger, _ = util.GetCtxLogger(ctx)
-	return &ResourceQueue{
+func NewResourceQueue(ctx context.Context, port int) (*ResourceQueue, error) {
+	rq = &ResourceQueue{
 		rw: &sync.RWMutex{},
 		q:  &queue.TaskQueue{},
 	}
+	service := &ResourceQueueService{}
+	//service := &HelloService{}
+	err := rpc.Register(service)
+	if err != nil {
+		return nil, err
+	}
+	listener, err := net.Listen("tcp", "0.0.0.0:"+fmt.Sprintf("%d", port))
+	if err != nil {
+		return nil, err
+	}
+	go func() {
+		for {
+			conn, err := listener.Accept()
+			if err != nil {
+				continue
+			}
+			go rpc.ServeConn(conn)
+		}
+	}()
+	return rq, nil
 }
 
 func (r ResourceQueue) GetTask() *task.Task {

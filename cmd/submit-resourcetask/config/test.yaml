@@ -1,7 +1,8 @@
-PodName: test
-PodUid: testUid
-Namespace: testspace
-ContainerName: testC
-ContainerId: testCUid
-CpuLimit: -2
-MemoryLimit: -2
+PodName: pause
+PodUid: b80bd8bd_5adc_455d_9a9c_adf93a6f6819
+Namespace: default
+ContainerName: pause
+ContainerId: 010bfa390d4e3c0c911662c9565b5078d9a108459254579eb639b72ec0f099e9
+CpuLimit: 400
+MemoryLimit: 20000000
+NodeName: master-k8s

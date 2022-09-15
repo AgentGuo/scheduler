@@ -16,7 +16,7 @@ type Plugin interface {
 
 type ScorePlugin interface {
 	Plugin
-	Score(ctx context.Context, nodeName string, task *task.Task) int64
+	Score(ctx context.Context, nodeName string, task *task.Task) float64
 }
 
 type FilterPlugin interface {

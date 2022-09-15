@@ -2,6 +2,7 @@ package resourcemanage
 
 import (
 	"fmt"
+	"github.com/AgentGuo/scheduler/util"
 	"log"
 	"net"
 	"net/rpc"
@@ -27,10 +28,16 @@ func (rm *ResourceManager) server(port int) {
 		log.Fatal("rpc register error:", err)
 		return
 	}
-	listener, err := net.Listen("tcp", "0.0.0.0:"+fmt.Sprintf("%d", port))
+	ip, err := util.GetLocalIP()
+	if err != nil {
+		log.Fatal(err)
+	}
+	listener, err := net.Listen("tcp", fmt.Sprintf("%s:%d", ip, port))
 	if err != nil {
 		log.Fatal("listen error:", err)
 		return
+	} else {
+		log.Printf("listening: %s:%d", ip, port)
 	}
 	go func() {
 		for {

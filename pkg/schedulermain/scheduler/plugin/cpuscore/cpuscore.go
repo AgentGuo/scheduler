@@ -16,7 +16,7 @@ type CpuScore struct {
 	redisCli *redis.Client
 }
 
-func (b CpuScore) Score(ctx context.Context, nodeName string, task *task.Task) int64 {
+func (b CpuScore) Score(ctx context.Context, nodeName string, task *task.Task) float64 {
 	v, err := b.redisCli.HGet(metricscli.MetricsInfoKey, nodeName).Result()
 	if err != nil {
 		return 0
@@ -25,8 +25,8 @@ func (b CpuScore) Score(ctx context.Context, nodeName string, task *task.Task) i
 	err = json.Unmarshal([]byte(v), nodeInfo)
 	logger, _ := util.GetCtxLogger(ctx)
 	logger.WithField(plugin.PluginLogKey, PluginName).Debugf(
-		"plugin [%+v]: score-%.2f", PluginName, nodeInfo.CpuRemain)
-	return nodeInfo.CpuRemain
+		"plugin [%+v]: score-%d", PluginName, nodeInfo.CpuRemain)
+	return float64(nodeInfo.CpuRemain)
 }
 
 func (b CpuScore) Name() string {

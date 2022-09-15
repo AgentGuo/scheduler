@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/AgentGuo/scheduler/cmd/scheduler-main/app"
+	"github.com/AgentGuo/scheduler/cmd/submit-resourcetask/app"
 )
 
 func main() {

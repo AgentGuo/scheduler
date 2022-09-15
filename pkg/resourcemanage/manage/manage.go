@@ -21,6 +21,7 @@ type Manager struct {
 }
 
 func (m *Manager) ChangeResourceLimit(args *apis.ResourceModifyArgs, reply *apis.ResourceModifyReply) (err error) {
+	log.Printf("ChangeResourceLimit args: %+v\n", args)
 	switch args.Type {
 	case task.KubeResourceTaskType:
 		kubeTask := apis.KubeResourceTask{

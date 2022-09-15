@@ -14,7 +14,6 @@ import (
 	"github.com/AgentGuo/scheduler/util"
 	"github.com/sirupsen/logrus"
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
@@ -34,7 +33,7 @@ type KubeTaskDetails struct {
 	UID       string `json:"UID"`
 }
 
-func NewKubeQueue(ctx context.Context) *KubeQueue {
+func NewKubeQueue(ctx context.Context) (*KubeQueue, error) {
 	// init logger
 	logger, _ = util.GetCtxLogger(ctx)
 	kq := &KubeQueue{
@@ -46,11 +45,11 @@ func NewKubeQueue(ctx context.Context) *KubeQueue {
 	kubeConfig := filepath.Join(util.HomeDir(), ".kube", "config")
 	config, err := clientcmd.BuildConfigFromFlags("", kubeConfig)
 	if err != nil {
-		panic(err.Error())
+		return nil, err
 	}
 	clientSet, err := kubernetes.NewForConfig(config)
 	if err != nil {
-		panic(err.Error())
+		return nil, err
 	}
 	// 初始化informer
 	factory := informers.NewSharedInformerFactory(clientSet, time.Minute)
@@ -85,9 +84,9 @@ func NewKubeQueue(ctx context.Context) *KubeQueue {
 	})
 	go informer.Run(stopper)
 	if !cache.WaitForCacheSync(stopper, nodeInformer.Informer().HasSynced) {
-		runtime.HandleError(fmt.Errorf("timed out waiting for caches to sync"))
+		return nil, fmt.Errorf("timed out waiting for caches to sync")
 	}
-	return kq
+	return kq, nil
 }
 
 func assignedPod(pod *v1.Pod) bool {

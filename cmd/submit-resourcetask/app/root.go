@@ -2,11 +2,11 @@
 package app
 
 import (
+	"k8s.io/apimachinery/pkg/util/json"
 	"os"
 
 	"github.com/AgentGuo/scheduler/cmd/submit-resourcetask/config"
 	"github.com/AgentGuo/scheduler/pkg/resourcemanage/apis"
-	"github.com/AgentGuo/scheduler/pkg/schedulermain"
 	"github.com/AgentGuo/scheduler/pkg/schedulermain/task"
 	"github.com/spf13/cobra"
 )
@@ -29,23 +29,25 @@ to quickly create a Cobra application.`,
 			if err != nil {
 				panic(err)
 			}
-			schedulermain.SubmitResourceTask(task.Task{
+			detailJson, _ := json.Marshal(apis.KubeResourceTask{
+				PodName:   cfg.PodName,
+				PodUid:    cfg.PodUid,
+				Namespace: cfg.Namespace,
+				ResourceTask: apis.ResourceTask{
+					ContainerName: cfg.ContainerName,
+					ContainerId:   cfg.ContainerId,
+					ResourceValue: apis.ResourceValue{
+						CpuLimit:    cfg.CpuLimit,
+						MemoryLimit: cfg.MemoryLimit,
+					},
+				},
+			})
+			SubmitResourceTask(task.Task{
 				Name:     cfg.PodName + "-" + cfg.Namespace,
 				Status:   task.PENDING,
 				TaskType: task.KubeResourceTaskType,
-				Detail: apis.KubeResourceTask{
-					PodName:   cfg.PodName,
-					PodUid:    cfg.PodUid,
-					Namespace: cfg.Namespace,
-					ResourceTask: apis.ResourceTask{
-						ContainerName: cfg.ContainerName,
-						ContainerId:   cfg.ContainerId,
-						ResourceValue: apis.ResourceValue{
-							CpuLimit:    cfg.CpuLimit,
-							MemoryLimit: cfg.MemoryLimit,
-						},
-					},
-				},
+				Detail:   string(detailJson),
+				NodeName: cfg.NodeName,
 			})
 		},
 	}

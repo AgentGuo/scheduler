@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/rpc"
+	"reflect"
 	"strconv"
 	"strings"
 
@@ -21,9 +22,9 @@ func (rc *ResourceClient) Execute(ctx context.Context, t *task.Task, hostIP stri
 	reply := apis.ResourceModifyReply{}
 
 	if t.TaskType == task.KubeResourceTaskType {
-		kubeDetail, ok := t.Detail.(apis.KubeResourceTask)
+		kubeDetail, ok := t.Detail.(*apis.KubeResourceTask)
 		if !ok {
-			return fmt.Errorf("task.Detail can not convert to KubeResourceTask")
+			return fmt.Errorf("task.Detail can not convert to KubeResourceTask, type=%+v", reflect.TypeOf(t.Detail))
 		}
 		args.Type = task.KubeResourceTaskType
 		args.NameSpace = kubeDetail.Namespace
@@ -39,7 +40,7 @@ func (rc *ResourceClient) Execute(ctx context.Context, t *task.Task, hostIP stri
 	}
 	err := rc.call(hostIP, apis.ChangeResourceLimit, &args, &reply)
 	if err != nil || !reply.Done {
-		return fmt.Errorf("%+v excute failed", *t)
+		return fmt.Errorf("%+v excute failed, err=%+v", *t, err)
 	}
 	return nil
 }

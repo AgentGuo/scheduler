@@ -9,12 +9,13 @@ import (
 
 // SchedulerMainConfig binder-main config
 type SchedulerMainConfig struct {
-	Port                int          `yaml:"port"` // server port
-	RedisAddr           string       `yaml:"redis_addr"`
-	RedisPassword       string       `yaml:"redis_password"`
-	ResourceManagerPort int          `yaml:"resource_manager_port"`
-	LogLevel            string       `yaml:"log_level"`
-	Plugin              PluginConfig `yaml:"plugin"`
+	Port                    int          `yaml:"port"` // server port
+	RedisAddr               string       `yaml:"redis_addr"`
+	RedisPassword           string       `yaml:"redis_password"`
+	ResourceManagerPort     int          `yaml:"resource_manager_port"`
+	ResourceQueueServerPort int          `yaml:"resource_queue_server_port"`
+	LogLevel                string       `yaml:"log_level"`
+	Plugin                  PluginConfig `yaml:"plugin"`
 }
 
 type PluginConfig struct {

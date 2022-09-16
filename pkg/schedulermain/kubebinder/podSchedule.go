@@ -34,14 +34,17 @@ func (k KubeBind) Bind(t *task.Task, nodeName string) error {
 	}
 }
 
-func NewKubeBind() KubeBind {
+func NewKubeBind() (*KubeBind, error) {
 	kubeConfig := filepath.Join(util.HomeDir(), ".kube", "config")
 	config, err := clientcmd.BuildConfigFromFlags("", kubeConfig)
 	if err != nil {
-		panic(err.Error())
+		return nil, err
 	}
 	client, err := kubernetes.NewForConfig(config)
-	return KubeBind{
-		client: client,
+	if err != nil {
+		return nil, err
 	}
+	return &KubeBind{
+		client: client,
+	}, nil
 }

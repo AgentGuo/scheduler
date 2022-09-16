@@ -2,10 +2,7 @@ package schedulermain
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"time"
-
 	"github.com/AgentGuo/scheduler/cmd/scheduler-main/config"
 	"github.com/AgentGuo/scheduler/pkg/metricscli"
 	"github.com/AgentGuo/scheduler/pkg/schedulermain/kubebinder"
@@ -15,6 +12,8 @@ import (
 	"github.com/AgentGuo/scheduler/pkg/schedulermain/task/queue"
 	"github.com/AgentGuo/scheduler/pkg/schedulermain/task/resourcequeue"
 	"github.com/AgentGuo/scheduler/util"
+	"k8s.io/apimachinery/pkg/util/json"
+	"time"
 )
 
 type SchedulerMain struct {
@@ -24,21 +23,29 @@ type SchedulerMain struct {
 }
 
 func NewSchedulerMain(ctx context.Context, config *config.SchedulerMainConfig) (*SchedulerMain, error) {
+	// step1: 初始化scheduler
 	Scheduler, err := scheduler.NewScheduler(config)
 	if err != nil {
 		return nil, err
 	}
-	rq, err := resourcequeue.NewResourceQueue(ctx, config.ResourceQueueServerPort)
+	// step2: 初始化调度队列
+	scheduleQueueList := queue.ScheduleQueueList{}
+	err = resourcequeue.AppendResourceQueue(ctx, &scheduleQueueList, config.ResourceQueueServerPort)
 	if err != nil {
 		return nil, err
 	}
-	kq, err := kubequeue.NewKubeQueue(ctx)
+	err = kubequeue.AppendKubeQueue(ctx, &scheduleQueueList)
+	if err != nil {
+		return nil, err
+	}
+	// step3: 初始化binder
+	binder, err := kubebinder.NewKubeBind()
 	if err != nil {
 		return nil, err
 	}
 	return &SchedulerMain{
-		ScheduleQueueList: []queue.ScheduleQueue{rq, kq},
-		Binder:            kubebinder.NewKubeBind(),
+		ScheduleQueueList: scheduleQueueList,
+		Binder:            binder,
 		Scheduler:         Scheduler,
 	}, nil
 }
@@ -52,49 +59,51 @@ func RunSchedulerMain(ctx context.Context, config *config.SchedulerMainConfig) {
 		return
 	}
 	for {
-		t := s.ScheduleQueueList.GetListTask()
-		if t != nil {
-			scheLogger, _ := util.GetCtxLogger(ctx)
-			if t.TaskType == task.NormalTaskType {
-				util.SetCtxFields(ctx, map[string]string{task.TaskNameLogKey: t.Name})
-				if t.Name == "pause-default" { // 测试用的逻辑
-					node, err := s.Scheduler.Schedule(ctx, t)
-					if err != nil {
-						scheLogger.Errorf("schedule failed:%+v", err)
-						continue
-					}
-					err = s.Binder.Bind(t, node)
-					if err != nil {
-						scheLogger.Errorf("bind failed:%+v", err)
-						continue
-					}
-					t.NodeName = node
-					t.Status = task.RUNNING
-					t.UpdateTime = time.Now().Unix()
-					v, err := json.Marshal(*t)
-					if err != nil {
-						// 失败处理
-						scheLogger.Errorf("json marshal failed:%+v", err)
-						continue
-					}
-					err = s.Scheduler.RedisCli.HSet(metricscli.TaskInfoKey, t.Name, v).Err()
-					if err != nil {
-						scheLogger.Errorf("update taskinfo failed:%+v", err)
-					}
-				}
-			} else if t.TaskType == task.KubeResourceTaskType {
-				_, err := s.Scheduler.Schedule(ctx, t)
-				if err != nil {
-					scheLogger.Errorf("schedule failed:%+v", err)
-					continue
-				}
-				err = s.Scheduler.ExecuteResourceT(ctx, t)
-				if err != nil {
-					scheLogger.Errorf("execute resource task failed:%+v", err)
-				}
+		// step0: 从多个调度队列中取出调度任务
+		t, err := s.ScheduleQueueList.GetListTask()
+		if err != nil {
+			logger.Errorf("get task from queue list error: %+v", err)
+			continue
+		}
+		scheLogger, _ := util.GetCtxLogger(ctx)
+		switch t.TaskType {
+		case task.NormalTaskType:
+			// step1: 调度到一个节点
+			util.SetCtxFields(ctx, map[string]string{task.TaskNameLogKey: t.Name})
+			node, err := s.Scheduler.Schedule(ctx, t)
+			if err != nil {
+				scheLogger.Errorf("schedule failed:%+v", err)
+				continue
 			}
-		} else {
-			time.Sleep(time.Second)
+			// step2: 绑定到节点
+			err = s.Binder.Bind(t, node)
+			if err != nil {
+				scheLogger.Errorf("bind failed:%+v", err)
+				continue
+			}
+			t.NodeName = node
+			t.Status = task.RUNNING
+			t.UpdateTime = time.Now().Unix()
+			v, err := json.Marshal(*t)
+			if err != nil {
+				// 失败处理
+				scheLogger.Errorf("json marshal failed:%+v", err)
+				continue
+			}
+			err = s.Scheduler.RedisCli.HSet(metricscli.TaskInfoKey, t.Name, v).Err()
+			if err != nil {
+				scheLogger.Errorf("update taskinfo failed:%+v", err)
+			}
+		case task.KubeResourceTaskType:
+			_, err := s.Scheduler.Schedule(ctx, t)
+			if err != nil {
+				scheLogger.Errorf("schedule failed:%+v", err)
+				continue
+			}
+			err = s.Scheduler.ExecuteResourceT(ctx, t)
+			if err != nil {
+				scheLogger.Errorf("execute resource task failed:%+v", err)
+			}
 		}
 	}
 }

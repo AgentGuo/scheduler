@@ -1,6 +1,7 @@
 package queue
 
 import (
+	"fmt"
 	"github.com/AgentGuo/scheduler/pkg/schedulermain/task"
 )
 
@@ -41,11 +42,22 @@ type ScheduleQueue interface {
 
 type ScheduleQueueList []ScheduleQueue
 
-func (s ScheduleQueueList) GetListTask() *task.Task {
-	for _, q := range s {
-		if t := q.GetTask(); t != nil {
-			return t
+var TaskChan chan int
+
+const TaskChanLength = 1000
+
+func init() {
+	TaskChan = make(chan int, TaskChanLength)
+}
+
+func (s ScheduleQueueList) GetListTask() (*task.Task, error) {
+	queueIndex := <-TaskChan
+	if queueIndex < len(s) {
+		if t := s[queueIndex].GetTask(); t != nil {
+			return t, nil
 		}
+		return nil, fmt.Errorf("get task is nil(queue index = %+v)", queueIndex)
+	} else {
+		return nil, fmt.Errorf("queue index is invalid")
 	}
-	return nil
 }

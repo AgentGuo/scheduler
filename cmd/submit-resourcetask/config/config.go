@@ -10,26 +10,20 @@ import (
 
 // SchedulerMainConfig binder-main config
 type ResourceTaskConfig struct {
-	PodName       string `yaml:"PodName"`
-	PodUid        string `yaml:"PodUid"`
-	Namespace     string `yaml:"Namespace"`
+	PodName    string      `yaml:"PodName"`
+	Namespace  string      `yaml:"Namespace"`
+	NodeName   string      `yaml:"NodeName"`
+	Containers []Container `yaml:"Containers"`
+}
+
+type Container struct {
 	ContainerName string `yaml:"ContainerName"`
-	ContainerId   string `yaml:"ContainerId"`
 	CpuLimit      int64  `yaml:"CpuLimit"`
 	MemoryLimit   int64  `yaml:"MemoryLimit"`
-	NodeName      string `yaml:"NodeName"`
 }
 
 func ReadConfig(configFilePath string) (*ResourceTaskConfig, error) {
-	config := &ResourceTaskConfig{ // default config value
-		PodName:       "",
-		PodUid:        "",
-		Namespace:     "",
-		ContainerName: "",
-		ContainerId:   "",
-		CpuLimit:      0,
-		MemoryLimit:   0,
-	}
+	config := &ResourceTaskConfig{}
 	// Must config set
 	if len(configFilePath) == 0 {
 		return config, fmt.Errorf("no config")
@@ -43,7 +37,7 @@ func ReadConfig(configFilePath string) (*ResourceTaskConfig, error) {
 	if err != nil {
 		return config, err
 	}
-	if config.PodName == "" || config.PodUid == "" || config.Namespace == "" || config.ContainerName == "" || config.ContainerId == "" {
+	if config.PodName == "" || config.Namespace == "" || len(config.Containers) == 0 {
 		return config, fmt.Errorf("wrong config")
 	}
 	return config, nil

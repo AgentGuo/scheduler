@@ -23,8 +23,9 @@ import (
 var logger *logrus.Entry
 
 type KubeQueue struct {
-	rw *sync.RWMutex
-	q  *queue.TaskQueue
+	index int
+	mutex *sync.Mutex
+	q     *queue.TaskQueue
 }
 
 type KubeTaskDetails struct {
@@ -33,23 +34,25 @@ type KubeTaskDetails struct {
 	UID       string `json:"UID"`
 }
 
-func NewKubeQueue(ctx context.Context) (*KubeQueue, error) {
+func AppendKubeQueue(ctx context.Context, list *queue.ScheduleQueueList) error {
+	index := len(*list)
 	// init logger
 	logger, _ = util.GetCtxLogger(ctx)
 	kq := &KubeQueue{
-		rw: &sync.RWMutex{},
-		q:  &queue.TaskQueue{},
+		index: index,
+		mutex: &sync.Mutex{},
+		q:     &queue.TaskQueue{},
 	}
 	heap.Init(kq.q)
 
 	kubeConfig := filepath.Join(util.HomeDir(), ".kube", "config")
 	config, err := clientcmd.BuildConfigFromFlags("", kubeConfig)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	clientSet, err := kubernetes.NewForConfig(config)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	// 初始化informer
 	factory := informers.NewSharedInformerFactory(clientSet, time.Minute)
@@ -84,9 +87,10 @@ func NewKubeQueue(ctx context.Context) (*KubeQueue, error) {
 	})
 	go informer.Run(stopper)
 	if !cache.WaitForCacheSync(stopper, nodeInformer.Informer().HasSynced) {
-		return nil, fmt.Errorf("timed out waiting for caches to sync")
+		return fmt.Errorf("timed out waiting for caches to sync")
 	}
-	return kq, nil
+	*list = append(*list, kq)
+	return nil
 }
 
 func assignedPod(pod *v1.Pod) bool {
@@ -94,8 +98,8 @@ func assignedPod(pod *v1.Pod) bool {
 }
 
 func (k KubeQueue) GetTask() *task.Task {
-	k.rw.RLock()
-	defer k.rw.RUnlock()
+	k.mutex.Lock()
+	defer k.mutex.Unlock()
 	if k.q.Len() == 0 {
 		return nil
 	} else {
@@ -104,19 +108,17 @@ func (k KubeQueue) GetTask() *task.Task {
 }
 
 func (k KubeQueue) SubmitTask(task task.Task) error {
-	k.rw.RLock()
-	defer k.rw.RUnlock()
-
+	k.mutex.Lock()
+	defer k.mutex.Unlock()
 	k.q.Push(task)
+	queue.TaskChan <- k.index
 	return nil
 }
 
-func (k *KubeQueue) addPodToSchedulingQueue(obj interface{}) {
-	k.rw.Lock()
-	defer k.rw.Unlock()
+func (k KubeQueue) addPodToSchedulingQueue(obj interface{}) {
 	pod := obj.(*v1.Pod)
 	logger.Debugf("add event for unscheduled pod: %s\n", pod.Name)
-	k.q.Push(task.Task{
+	err := k.SubmitTask(task.Task{
 		Name:     pod.Name + "-" + pod.Namespace,
 		Status:   task.PENDING,
 		TaskType: task.NormalTaskType,
@@ -130,14 +132,17 @@ func (k *KubeQueue) addPodToSchedulingQueue(obj interface{}) {
 			MemoryLimit: getPodMemLimits(pod),
 		},
 	})
+	if err != nil {
+		logger.Errorf("add event for unscheduled pod error: %+v", err)
+	}
 }
 
-func (k *KubeQueue) updatePodInSchedulingQueue(oldObj, newObj interface{}) {
+func (k KubeQueue) updatePodInSchedulingQueue(oldObj, newObj interface{}) {
 	oldPod, newPod := oldObj.(*v1.Pod), newObj.(*v1.Pod)
 	logger.Debugf("update event for pod, old pod: %s, new pod: %s\n", oldPod.Name, newPod.Name)
 }
 
-func (k *KubeQueue) deletePodFromSchedulingQueue(obj interface{}) {
+func (k KubeQueue) deletePodFromSchedulingQueue(obj interface{}) {
 	pod := obj.(*v1.Pod)
 	logger.Debugf("delete event for pod: %s\n", pod.Name)
 }

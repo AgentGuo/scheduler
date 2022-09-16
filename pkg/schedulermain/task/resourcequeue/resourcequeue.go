@@ -14,24 +14,26 @@ import (
 var rq *ResourceQueue
 
 type ResourceQueue struct {
-	rw *sync.RWMutex
-	q  *queue.TaskQueue
+	index int
+	mutex *sync.Mutex
+	q     *queue.TaskQueue
 }
 
-func NewResourceQueue(ctx context.Context, port int) (*ResourceQueue, error) {
+func AppendResourceQueue(ctx context.Context, list *queue.ScheduleQueueList, port int) error {
+	index := len(*list)
 	rq = &ResourceQueue{
-		rw: &sync.RWMutex{},
-		q:  &queue.TaskQueue{},
+		index: index,
+		mutex: &sync.Mutex{},
+		q:     &queue.TaskQueue{},
 	}
 	service := &ResourceQueueService{}
-	//service := &HelloService{}
 	err := rpc.Register(service)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	listener, err := net.Listen("tcp", "0.0.0.0:"+fmt.Sprintf("%d", port))
 	if err != nil {
-		return nil, err
+		return err
 	}
 	go func() {
 		for {
@@ -42,12 +44,13 @@ func NewResourceQueue(ctx context.Context, port int) (*ResourceQueue, error) {
 			go rpc.ServeConn(conn)
 		}
 	}()
-	return rq, nil
+	*list = append(*list, rq)
+	return nil
 }
 
 func (r ResourceQueue) GetTask() *task.Task {
-	r.rw.RLock()
-	defer r.rw.RUnlock()
+	r.mutex.Lock()
+	defer r.mutex.Unlock()
 	if r.q.Len() == 0 {
 		return nil
 	} else {
@@ -56,10 +59,11 @@ func (r ResourceQueue) GetTask() *task.Task {
 }
 
 func (r ResourceQueue) SubmitTask(task task.Task) error {
-	r.rw.RLock()
-	defer r.rw.RUnlock()
+	r.mutex.Lock()
+	defer r.mutex.Unlock()
 
 	// TODO: task检查
 	r.q.Push(task)
+	queue.TaskChan <- r.index
 	return nil
 }

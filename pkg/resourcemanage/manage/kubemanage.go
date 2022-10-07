@@ -20,44 +20,76 @@ func (km KubeManager) changeResource(t interface{}) error {
 	var oldValueMem int64
 	var err error
 
+	/*	整体:
+		   				   |--fail--> cpu --> |
+		cpu --success--> memory --success--> return
+		 |                                    |
+		 | --fail---------------------------->|
+
+		修改cpu or mem:
+		 1.读取旧值
+		 2.计算差值
+		 3.修改Pod Limit
+		 	1)成功.
+				修改Container Limit
+				a. 成功, 返回
+				b. 失败, Pod Limit还原, 返回
+			2)失败, return
+	*/
 	if target.CpuLimit != 0 {
-		if oldValueCpu, err = changeLimitInKubeByResource("cpu", apis.CpuLimitInUs, &target); err != nil {
+		if oldValueCpu, err = changeLimitInContainer("cpu", apis.CpuLimitInUs, &target); err != nil {
 			log.Println("change cpu limit failed")
 			return err
 		}
 	}
 
 	if target.MemoryLimit != 0 {
-		if oldValueMem, err = changeLimitInKubeByResource("memory", apis.MemoryLimitInBytes, &target); err != nil {
+		if oldValueMem, err = changeLimitInContainer("memory", apis.MemoryLimitInBytes, &target); err != nil {
 			log.Println("change memory limit failed")
 			target.CpuLimit = oldValueCpu
-			if _, err = changeLimitInKubeByResource("cpu", apis.CpuLimitInUs, &target); err != nil {
+			if _, errb := changeLimitInContainer("cpu", apis.CpuLimitInUs, &target); errb != nil {
 				log.Println("change back cpu limit failed")
-				return err
+				return errb
 			}
 			return err
 		}
 	}
-	log.Printf("cpu: %d -> %d, mem: %d -> %d\n", oldValueCpu, target.CpuLimit, oldValueMem, target.MemoryLimit)
+	log.Printf("cpu: %dm -> %dm, mem: %d bytes -> %d bytes\n", oldValueCpu/100, target.CpuLimit, oldValueMem, target.MemoryLimit)
 	return nil
 }
 
-func changeLimitInKubeByResource(resource string, changeFile string, target *apis.KubeResourceTask) (int64, error) {
+func changeLimitInContainer(resource string, changeFile string, target *apis.KubeResourceTask) (int64, error) {
 	// check Burstable Pod firstly
-	path := target.KubeResourcePathByPodContainerID(resource, apis.KubeBurstableDir, apis.KubeBurstablePodDirPrefix, changeFile)
+	path := target.KubeContainerPathByPodContainerID(resource, apis.KubeBurstableDir, apis.KubeBurstablePodDirPrefix, changeFile)
 	var oldValue int64 = 0
-	var errw error = nil
+	var errW error = nil
+	var errR error = nil
 	var changeData int64
+	var diff int64
 	if resource == "cpu" {
-		changeData = target.CpuLimit * 100 // CpuLimit(m) / 1000m * 100000us(cpu.cfs_period_us)
+		if target.CpuLimit != -1 {
+			changeData = target.CpuLimit * 100 // CpuLimit(m) / 1000m * 100000us(cpu.cfs_period_us)
+		}
 	} else if resource == "memory" {
 		changeData = target.MemoryLimit
 	} else {
 		return 0, fmt.Errorf("wrong resource")
 	}
 	if ok, err := util.IsDirOrFileExist(path); ok {
-		if oldValue, errw = util.WriteIntToFile(path, changeData); errw != nil {
-			return oldValue, errw
+		// 先读取原值, 计算差值之后, 先修改Pod层, 再修改Container层
+		oldValue, errR = util.ReadIntFromFile(path)
+		if errR != nil {
+			return oldValue, errR
+		}
+		diff = changeData - oldValue
+		errW = changeLimitInPod(target.KubePodPathByPodID(resource, apis.KubeBesteffortDir, apis.KubeBesteffortPodDirPrefix, changeFile), diff)
+		if errW != nil {
+			return oldValue, errW
+		}
+
+		if errW = util.WriteIntToFile(path, changeData); errW != nil {
+			errc := changeLimitInPod(target.KubePodPathByPodID(resource, apis.KubeBesteffortDir, apis.KubeBesteffortPodDirPrefix, changeFile), -diff)
+			return oldValue, fmt.Errorf("Container limit failed [%v] and Pod Limit back [%v]", errW, errc)
 		} else {
 			log.Printf("modify %s limit success.\n", resource)
 		}
@@ -66,10 +98,21 @@ func changeLimitInKubeByResource(resource string, changeFile string, target *api
 			return oldValue, err
 		}
 		// then check Besteffort Pod
-		path = target.KubeResourcePathByPodContainerID(resource, apis.KubeBesteffortDir, apis.KubeBesteffortPodDirPrefix, changeFile)
+		path = target.KubeContainerPathByPodContainerID(resource, apis.KubeBesteffortDir, apis.KubeBesteffortPodDirPrefix, changeFile)
 		if ok1, err1 := util.IsDirOrFileExist(path); ok1 {
-			if oldValue, errw = util.WriteIntToFile(path, changeData); errw != nil {
-				return oldValue, errw
+			oldValue, errR = util.ReadIntFromFile(path)
+			if errR != nil {
+				return oldValue, errR
+			}
+			diff = changeData - oldValue
+			errW = changeLimitInPod(target.KubePodPathByPodID(resource, apis.KubeBesteffortDir, apis.KubeBesteffortPodDirPrefix, changeFile), diff)
+			if errW != nil {
+				return oldValue, errW
+			}
+
+			if errW = util.WriteIntToFile(path, changeData); errW != nil {
+				errc := changeLimitInPod(target.KubePodPathByPodID(resource, apis.KubeBesteffortDir, apis.KubeBesteffortPodDirPrefix, changeFile), -diff)
+				return oldValue, fmt.Errorf("Container limit failed [%v] and Pod Limit back [%v]", errW, errc)
 			} else {
 				log.Printf("modify %s limit success.\n", resource)
 			}
@@ -82,4 +125,15 @@ func changeLimitInKubeByResource(resource string, changeFile string, target *api
 		}
 	}
 	return oldValue, nil
+}
+
+func changeLimitInPod(path string, diff int64) error {
+	oldValue, errR := util.ReadIntFromFile(path)
+	if errR != nil {
+		return errR
+	}
+
+	newValue := oldValue + diff
+	errW := util.WriteIntToFile(path, newValue)
+	return errW
 }

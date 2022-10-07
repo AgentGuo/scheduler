@@ -25,7 +25,11 @@ type KubeResourceTask struct {
 	ResourceTask
 }
 
-func (krt KubeResourceTask) KubeResourcePathByPodContainerID(resourceType, kubeQosClassDir, podDirPrefix, resourceLimitFile string) string {
+func (krt KubeResourceTask) KubeContainerPathByPodContainerID(resourceType, kubeQosClassDir, podDirPrefix, resourceLimitFile string) string {
 	return filepath.Join(util.CgroupDir(), resourceType, CgroupKubeDir, kubeQosClassDir, util.JoinPath(podDirPrefix, krt.PodUid, KubePodDirSuffix),
 		strings.Join([]string{KubeDockerDirPrefix, krt.ContainerId, KubeDockerDirSuffix}, ""), resourceLimitFile)
+}
+
+func (krt KubeResourceTask) KubePodPathByPodID(resourceType, kubeQosClassDir, podDirPrefix, resourceLimitFile string) string {
+	return filepath.Join(util.CgroupDir(), resourceType, CgroupKubeDir, kubeQosClassDir, util.JoinPath(podDirPrefix, krt.PodUid, KubePodDirSuffix), resourceLimitFile)
 }

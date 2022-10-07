@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"path/filepath"
+	"strconv"
+	"strings"
 
 	"github.com/AgentGuo/scheduler/pkg/resourcemanage/apis"
 	"github.com/AgentGuo/scheduler/util"
@@ -57,8 +59,8 @@ func (kn KubeNotifier) Notify(t interface{}) error {
 				tmp.MemoryLimit = 0
 			}
 			// 直接修改, 正确性检查在修改cgroup时完成
-			pod.Spec.Containers[i].Resources.Limits[v1.ResourceCPU] = *resource.NewMilliQuantity(target.CpuLimit, resource.DecimalSI) // m
-			pod.Spec.Containers[i].Resources.Limits[v1.ResourceMemory] = *resource.NewQuantity(target.MemoryLimit, resource.BinarySI) // bytes
+			pod.Spec.Containers[i].Resources.Limits[v1.ResourceCPU] = resource.MustParse(strings.Join([]string{strconv.FormatInt(target.CpuLimit, 10), "m"}, ""))             // m
+			pod.Spec.Containers[i].Resources.Limits[v1.ResourceMemory] = resource.MustParse(strings.Join([]string{strconv.FormatInt(target.MemoryLimit/1024, 10), "Ki"}, "")) // bytes
 			break
 		}
 

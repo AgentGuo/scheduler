@@ -39,14 +39,16 @@ func (m *Manager) ChangeResourceLimit(args *apis.ResourceModifyArgs, reply *apis
 		}
 		err = m.platformManager.changeResource(kubeTask)
 		if err != nil {
-			log.Printf("ChangeResourceLimit failed with task %v", kubeTask)
+			log.Printf("ChangeResourceLimit failed with task %v\n", kubeTask)
 			reply.Done = false
 			return err
 		}
-		err = m.platformNotifier.Notify(kubeTask)
-		if err != nil {
-			// 暂不处理
-		}
+		// TODO: 修改k8s信息, 使kubectl describe能查看到修改之后的限制
+		// err = m.platformNotifier.Notify(kubeTask)
+		// if err != nil {
+		// 	// 暂不处理
+		// 	log.Printf("Notify failed with task %v\n", kubeTask)
+		// }
 		reply.Done = true
 		return nil
 	default:

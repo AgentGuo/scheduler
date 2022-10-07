@@ -64,8 +64,11 @@ func TestWriteIntToFile(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if ok, err1 := util.IsDirOrFileExist(tt.path); ok {
-				if old, err := util.WriteIntToFile(tt.path, tt.data); err != tt.want {
-					t.Errorf("WriteIntToFile(%s, %d) return %d, %s, want %v", tt.path, tt.data, old, err, tt.want)
+				// if old, err := util.WriteIntToFile(tt.path, tt.data); err != tt.want {
+				// 	t.Errorf("WriteIntToFile(%s, %d) return %d, %s, want %v", tt.path, tt.data, old, err, tt.want)
+				// }
+				if err := util.WriteIntToFile(tt.path, tt.data); err != tt.want {
+					t.Errorf("WriteIntToFile(%s, %d) return %s, want %v", tt.path, tt.data, err, tt.want)
 				}
 			} else {
 				t.Errorf("error %v", err1)

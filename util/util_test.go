@@ -58,8 +58,8 @@ func TestWriteIntToFile(t *testing.T) {
 		old  int64
 		want error
 	}{
-		{"test#1", "/root/test", 20000, 1, nil},
-		{"test#2", "/root/test_non", 1, 0, nil},
+		{"test#1", "/root/test", -20000, 1, nil},
+		{"test#2", "/root/test_non", -1, 0, nil},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -76,6 +76,13 @@ func TestWriteIntToFile(t *testing.T) {
 
 		})
 	}
+}
+
+func TestReadIntFromFile(t *testing.T) {
+	t.Run("test", func(t *testing.T) {
+		data, err := util.ReadIntFromFile("/root/test")
+		t.Errorf("%d %v", data, err)
+	})
 }
 
 func TestGetLocalIP(t *testing.T) {

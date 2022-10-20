@@ -28,6 +28,7 @@ func (m *Manager) ChangeResourceLimit(args *apis.ResourceModifyArgs, reply *apis
 			PodName:   args.PodName,
 			PodUid:    args.PodUid,
 			Namespace: args.NameSpace,
+			Qos:       args.Qos,
 			ResourceTask: apis.ResourceTask{
 				ContainerName: args.ContainerName,
 				ContainerId:   args.ContainerId,

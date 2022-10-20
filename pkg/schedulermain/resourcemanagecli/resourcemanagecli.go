@@ -34,6 +34,7 @@ func (rc *ResourceClient) Execute(ctx context.Context, t *task.Task, hostIP stri
 		args.ContainerId = kubeDetail.ContainerId
 		args.CpuLimit = kubeDetail.CpuLimit
 		args.MemoryLimit = kubeDetail.MemoryLimit
+		args.Qos = kubeDetail.Qos
 	} else {
 		// TODO: other types
 		args.Type = task.ResourceTaskType

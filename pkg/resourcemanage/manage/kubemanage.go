@@ -81,44 +81,11 @@ func changeLimitInContainer(resource string, changeFile string, target *apis.Kub
 		return 0, fmt.Errorf("wrong resource")
 	}
 
-	// check Burstable Pod firstly
-	path := target.KubeContainerPathByPodContainerID(resource, apis.KubeBurstableDir, apis.KubeBurstablePodDirPrefix, changeFile)
-	if ok, err := util.IsDirOrFileExist(path); ok {
-		// 先读取原值, 计算差值之后, 先修改Pod层, 再修改Container层
-		oldValue, errR = util.ReadIntFromFile(path)
-		if errR != nil {
-			return oldValue, errR
-		}
-
-		if oldValue == changeData {
-			return oldValue, nil
-		}
-
-		// 改为-1 或 本来就是-1, Pod limit都应该为-1
-		if changeData == -1 || oldValue == -1 {
-			diff = 0
-		} else {
-			diff = changeData - oldValue
-		}
-		oldP, errW = changeLimitInPod(target.KubePodPathByPodID(resource, apis.KubeBurstableDir, apis.KubeBurstablePodDirPrefix, changeFile), diff, false)
-		if errW != nil {
-			return oldValue, errW
-		}
-
-		if errW = util.WriteIntToFile(path, changeData); errW != nil {
-			_, errc := changeLimitInPod(target.KubePodPathByPodID(resource, apis.KubeBurstableDir, apis.KubeBurstablePodDirPrefix, changeFile), oldP, true)
-			return oldValue, fmt.Errorf("container limit failed [%v] and Pod Limit back [%v]", errW, errc)
-		} else {
-			log.Printf("modify %s limit success.\n", resource)
-		}
-	} else {
-		if err != nil {
-			return oldValue, err
-		}
-		// then check Besteffort Pod
-		path = target.KubeContainerPathByPodContainerID(resource, apis.KubeBesteffortDir, apis.KubeBesteffortPodDirPrefix, changeFile)
-		if ok1, err1 := util.IsDirOrFileExist(path); ok1 {
-			oldValue, errR = util.ReadIntFromFile(path)
+	switch target.Qos {
+	case apis.PodQOSGuaranteed:
+		pathC := target.KubeContainerPathByPodContainerID(resource, apis.GuaranteedDir, apis.GuaranteedPodDirPrefix, changeFile)
+		if ok, err := util.IsDirOrFileExist(pathC); ok {
+			oldValue, _, errR = checkChange(pathC, changeData)
 			if errR != nil {
 				return oldValue, errR
 			}
@@ -127,65 +94,79 @@ func changeLimitInContainer(resource string, changeFile string, target *apis.Kub
 				return oldValue, nil
 			}
 
-			if changeData == -1 || oldValue == -1 {
-				diff = 0
-			} else {
-				diff = changeData - oldValue
+			if errW = util.WriteIntToFile(pathC, changeData); errW != nil {
+				return oldValue, fmt.Errorf("container limit failed [%v]", errW)
+			}
+			log.Printf("modify %s limit success.\n", resource)
+			break
+		} else {
+			if err != nil {
+				return oldValue, err
+			}
+			return oldValue, fmt.Errorf("please check podUID and containerID, because file:%s is not exist", pathC)
+		}
+	case apis.PodQOSBestEffort:
+		pathC := target.KubeContainerPathByPodContainerID(resource, apis.KubeBesteffortDir, apis.KubeBesteffortPodDirPrefix, changeFile)
+		pathP := target.KubePodPathByPodID(resource, apis.KubeBesteffortDir, apis.KubeBesteffortPodDirPrefix, changeFile)
+		if ok, err := util.IsDirOrFileExist(pathC); ok {
+			oldValue, diff, errR = checkChange(pathC, changeData)
+			if errR != nil {
+				return oldValue, errR
 			}
 
-			oldP, errW = changeLimitInPod(target.KubePodPathByPodID(resource, apis.KubeBesteffortDir, apis.KubeBesteffortPodDirPrefix, changeFile), diff, false)
+			if oldValue == changeData {
+				return oldValue, nil
+			}
+
+			oldP, errW = changeLimitInPod(pathP, diff, false)
 			if errW != nil {
 				return oldValue, errW
 			}
 
-			if errW = util.WriteIntToFile(path, changeData); errW != nil {
-				_, errc := changeLimitInPod(target.KubePodPathByPodID(resource, apis.KubeBesteffortDir, apis.KubeBesteffortPodDirPrefix, changeFile), oldP, true)
+			if errW = util.WriteIntToFile(pathC, changeData); errW != nil {
+				_, errc := changeLimitInPod(pathP, oldP, true)
 				return oldValue, fmt.Errorf("container limit failed [%v] and Pod Limit back [%v]", errW, errc)
-			} else {
-				log.Printf("modify %s limit success.\n", resource)
 			}
+			log.Printf("modify %s limit success.\n", resource)
+			break
 		} else {
-			if err1 != nil {
+			if err != nil {
 				return oldValue, err
-			} else {
-				// finally check Guaranteed Pod
-				path = target.KubeContainerPathByPodContainerID(resource, apis.GuaranteedDir, apis.GuaranteedPodDirPrefix, changeFile)
-				if ok1, err2 := util.IsDirOrFileExist(path); ok1 {
-					oldValue, errR = util.ReadIntFromFile(path)
-					if errR != nil {
-						return oldValue, errR
-					}
-
-					if oldValue == changeData {
-						return oldValue, nil
-					}
-
-					if changeData == -1 || oldValue == -1 {
-						diff = 0
-					} else {
-						diff = changeData - oldValue
-					}
-
-					oldP, errW = changeLimitInPod(target.KubePodPathByPodID(resource, apis.GuaranteedDir, apis.GuaranteedPodDirPrefix, changeFile), diff, false)
-					if errW != nil {
-						return oldValue, errW
-					}
-
-					if errW = util.WriteIntToFile(path, changeData); errW != nil {
-						_, errc := changeLimitInPod(target.KubePodPathByPodID(resource, apis.GuaranteedDir, apis.GuaranteedPodDirPrefix, changeFile), oldP, true)
-						return oldValue, fmt.Errorf("container limit failed [%v] and Pod Limit back [%v]", errW, errc)
-					} else {
-						log.Printf("modify %s limit success.\n", resource)
-					}
-				} else {
-					if err2 != nil {
-						return oldValue, err2
-					} else {
-						return oldValue, fmt.Errorf("please check podUID and containerID, because file:%s is not exist", path)
-					}
-				}
 			}
+			return oldValue, fmt.Errorf("please check podUID and containerID, because file:%s is not exist", pathC)
 		}
+	case apis.PodQOSBurstable:
+		pathC := target.KubeContainerPathByPodContainerID(resource, apis.KubeBurstableDir, apis.KubeBurstablePodDirPrefix, changeFile)
+		pathP := target.KubePodPathByPodID(resource, apis.KubeBurstableDir, apis.KubeBurstablePodDirPrefix, changeFile)
+		if ok, err := util.IsDirOrFileExist(pathC); ok {
+			oldValue, diff, errR = checkChange(pathC, changeData)
+			if errR != nil {
+				return oldValue, errR
+			}
+
+			if oldValue == changeData {
+				return oldValue, nil
+			}
+
+			oldP, errW = changeLimitInPod(pathP, diff, false)
+			if errW != nil {
+				return oldValue, errW
+			}
+
+			if errW = util.WriteIntToFile(pathC, changeData); errW != nil {
+				_, errc := changeLimitInPod(pathP, oldP, true)
+				return oldValue, fmt.Errorf("container limit failed [%v] and Pod Limit back [%v]", errW, errc)
+			}
+			log.Printf("modify %s limit success.\n", resource)
+			break
+		} else {
+			if err != nil {
+				return oldValue, err
+			}
+			return oldValue, fmt.Errorf("please check podUID and containerID, because file:%s is not exist", pathC)
+		}
+	default:
+		return -1, fmt.Errorf("qos class error whit %s", target.Qos)
 	}
 	return oldValue, nil
 }
@@ -214,4 +195,20 @@ func changeLimitInPod(path string, data int64, mode bool) (int64, error) {
 
 	errW := util.WriteIntToFile(path, newValue)
 	return oldValue, errW
+}
+
+func checkChange(path string, changeData int64) (oldValue int64, diff int64, errR error) {
+	// 先读取原值, 计算差值之后, 先修改上一层, 再修改Container层
+	oldValue, errR = util.ReadIntFromFile(path)
+	if errR != nil {
+		return oldValue, diff, errR
+	}
+
+	// 改为-1 或 本来就是-1, Pod limit都应该为-1
+	if changeData == -1 || oldValue == -1 {
+		diff = 0
+	} else {
+		diff = changeData - oldValue
+	}
+	return oldValue, diff, nil
 }

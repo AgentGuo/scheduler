@@ -18,6 +18,7 @@ type ResourceModifyArgs struct {
 	PodName   string
 	PodUid    string
 	NameSpace string
+	Qos       string
 }
 
 type ResourceModifyReply struct {

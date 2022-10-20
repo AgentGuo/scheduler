@@ -18,12 +18,18 @@ const (
 	KubePodDirSuffix           = ".slice"
 	KubeDockerDirPrefix        = "docker-"
 	KubeDockerDirSuffix        = ".scope"
+
+	// Pod QosClass
+	PodQOSGuaranteed = "Guaranteed"
+	PodQOSBurstable  = "Burstable"
+	PodQOSBestEffort = "BestEffort"
 )
 
 type KubeResourceTask struct {
 	PodName   string `json:"PodName" yaml:"PodName"`
 	PodUid    string `json:"PodUid" yaml:"PodUid"`
 	Namespace string `json:"Namespace" yaml:"Namespace"`
+	Qos       string `json:"Qos" yaml:"Qos"`
 	ResourceTask
 }
 

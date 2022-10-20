@@ -48,27 +48,16 @@ func NewScheduler(cfg *config.SchedulerMainConfig) (*Scheduler, error) {
 }
 
 func (s *Scheduler) Schedule(ctx context.Context, t *task.Task) (nodeName string, err error) {
-	if t.TaskType == task.NormalTaskType {
-		nodeList := ListLiveNode(s.RedisCli)
-		nodeList = s.filter(ctx, nodeList, t)
-		nodeList, err = s.score(ctx, nodeList, t)
-		if err != nil {
-			return "", err
-		}
-		if len(nodeList) == 0 {
-			return "", fmt.Errorf("no node for scheduling")
-		}
-		return nodeList[0], nil
-	} else if t.TaskType == task.KubeResourceTaskType {
-		// hostName := s.FindHostNameByTaskName(t.Name)
-		// if hostName == "" {
-		// 	return "", fmt.Errorf("not found hostName by taskName{%s}", t.Name)
-		// }
-		// return hostName, nil
-		return "", nil
+	nodeList := ListLiveNode(s.RedisCli)
+	nodeList = s.filter(ctx, nodeList, t)
+	nodeList, err = s.score(ctx, nodeList, t)
+	if err != nil {
+		return "", err
 	}
-
-	return "", fmt.Errorf("wrong task type")
+	if len(nodeList) == 0 {
+		return "", fmt.Errorf("no node for scheduling")
+	}
+	return nodeList[0], nil
 }
 
 func ListLiveNode(client *redis.Client) []string {
@@ -133,7 +122,7 @@ func (s *Scheduler) ExecuteResourceT(ctx context.Context, t *task.Task) error {
 	if t.TaskType == task.KubeResourceTaskType {
 		kubeDetail := &apis.KubeResourceTask{}
 		detail, ok := t.Detail.(string)
-		if !ok{
+		if !ok {
 			fmt.Printf("%+v\n%+v\n", t.Detail, reflect.TypeOf(t.Detail))
 			return fmt.Errorf("t.Detail can not convert to KubeResourceTask")
 		}

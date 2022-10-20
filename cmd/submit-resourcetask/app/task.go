@@ -2,6 +2,11 @@ package app
 
 import (
 	"context"
+	"log"
+	"net/rpc"
+	"path/filepath"
+	"strings"
+
 	"github.com/AgentGuo/scheduler/cmd/submit-resourcetask/config"
 	"github.com/AgentGuo/scheduler/pkg/resourcemanage/apis"
 	"github.com/AgentGuo/scheduler/pkg/schedulermain/task"
@@ -11,10 +16,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/json"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
-	"log"
-	"net/rpc"
-	"path/filepath"
-	"strings"
 )
 
 func SubmitResourceTask(taskList []task.Task) {
@@ -66,6 +67,7 @@ func GetTaskList(config *config.ResourceTaskConfig) []task.Task {
 			detailJson, _ := json.Marshal(apis.KubeResourceTask{
 				PodName:   config.PodName,
 				PodUid:    podUid,
+				Qos:       string(pod.Status.QOSClass),
 				Namespace: config.Namespace,
 				ResourceTask: apis.ResourceTask{
 					ContainerName: v.ContainerName,

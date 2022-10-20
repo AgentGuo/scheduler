@@ -95,11 +95,6 @@ func RunSchedulerMain(ctx context.Context, config *config.SchedulerMainConfig) {
 				scheLogger.Errorf("update taskinfo failed:%+v", err)
 			}
 		case task.KubeResourceTaskType:
-			_, err := s.Scheduler.Schedule(ctx, t)
-			if err != nil {
-				scheLogger.Errorf("schedule failed:%+v", err)
-				continue
-			}
 			err = s.Scheduler.ExecuteResourceT(ctx, t)
 			if err != nil {
 				scheLogger.Errorf("execute resource task failed:%+v", err)

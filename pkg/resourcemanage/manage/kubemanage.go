@@ -35,6 +35,8 @@ func (km KubeManager) changeResource(t interface{}) error {
 				a. 成功, 返回
 				b. 失败, Pod Limit还原, 返回
 			2)失败, return
+
+		只修改了pod level和container level, 高级level均为-1
 	*/
 	if target.CpuLimit != 0 {
 		if oldValueCpu, err = changeLimitInContainer("cpu", apis.CpuLimitInUs, &target); err != nil {
@@ -62,7 +64,6 @@ func (km KubeManager) changeResource(t interface{}) error {
 
 func changeLimitInContainer(resource string, changeFile string, target *apis.KubeResourceTask) (int64, error) {
 	var oldValue int64 = 0
-	var oldP int64 = 0
 	var errW error = nil
 	var errR error = nil
 	var changeData int64
@@ -118,14 +119,9 @@ func changeLimitInContainer(resource string, changeFile string, target *apis.Kub
 				return oldValue, nil
 			}
 
-			oldP, errW = changeLimitInPod(pathP, diff, false)
-			if errW != nil {
-				return oldValue, errW
-			}
-
-			if errW = util.WriteIntToFile(pathC, changeData); errW != nil {
-				_, errc := changeLimitInPod(pathP, oldP, true)
-				return oldValue, fmt.Errorf("container limit failed [%v] and Pod Limit back [%v]", errW, errc)
+			err = changeT(diff, oldValue, changeData, pathP, pathC)
+			if err != nil {
+				return oldValue, err
 			}
 			log.Printf("modify %s limit success.\n", resource)
 			break
@@ -148,14 +144,9 @@ func changeLimitInContainer(resource string, changeFile string, target *apis.Kub
 				return oldValue, nil
 			}
 
-			oldP, errW = changeLimitInPod(pathP, diff, false)
-			if errW != nil {
-				return oldValue, errW
-			}
-
-			if errW = util.WriteIntToFile(pathC, changeData); errW != nil {
-				_, errc := changeLimitInPod(pathP, oldP, true)
-				return oldValue, fmt.Errorf("container limit failed [%v] and Pod Limit back [%v]", errW, errc)
+			err = changeT(diff, oldValue, changeData, pathP, pathC)
+			if err != nil {
+				return oldValue, err
 			}
 			log.Printf("modify %s limit success.\n", resource)
 			break
@@ -169,6 +160,34 @@ func changeLimitInContainer(resource string, changeFile string, target *apis.Kub
 		return -1, fmt.Errorf("qos class error whit %s", target.Qos)
 	}
 	return oldValue, nil
+}
+
+func changeT(diff int64, oldValue int64, changeData int64, pathP string, pathC string) error {
+	if diff >= 0 {
+		oldP, errW := changeLimitInPod(pathP, diff, false)
+		if errW != nil {
+			return errW
+		}
+
+		if errW = util.WriteIntToFile(pathC, changeData); errW != nil {
+			_, errc := changeLimitInPod(pathP, oldP, true)
+			return fmt.Errorf("container limit failed [%v] and Pod Limit back [%v]", errW, errc)
+		}
+	} else {
+		if errW := util.WriteIntToFile(pathC, changeData); errW != nil {
+			return fmt.Errorf("container limit failed [%v]", errW)
+		}
+
+		_, errW := changeLimitInPod(pathP, diff, false)
+		if errW != nil {
+			if errW = util.WriteIntToFile(pathC, oldValue); errW != nil {
+				return fmt.Errorf("container limit back failed [%v]", errW)
+			}
+			return errW
+		}
+	}
+
+	return nil
 }
 
 func changeLimitInPod(path string, data int64, mode bool) (int64, error) {

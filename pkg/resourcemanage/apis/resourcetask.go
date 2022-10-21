@@ -2,7 +2,7 @@ package apis
 
 const (
 	MemoryLimitInBytes = "memory.limit_in_bytes" // -1: no limit
-	MemswLimitInByte   = "memory.memsw.limit_in_byte"
+	MemswLimitInByte   = "memory.memsw.limit_in_bytes"
 
 	// cpu.cfs_quota_us / cpu.cfs_period_us = cores(m) can be uesd
 	CpuLimitInUs      = "cpu.cfs_quota_us"  // -1: no limit

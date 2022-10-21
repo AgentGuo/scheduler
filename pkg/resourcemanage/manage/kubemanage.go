@@ -85,8 +85,9 @@ func changeLimitInContainer(resource string, changeFile string, target *apis.Kub
 	switch target.Qos {
 	case apis.PodQOSGuaranteed:
 		pathC := target.KubeContainerPathByPodContainerID(resource, apis.GuaranteedDir, apis.GuaranteedPodDirPrefix, changeFile)
+		pathP := target.KubePodPathByPodID(resource, apis.GuaranteedDir, apis.GuaranteedPodDirPrefix, changeFile)
 		if ok, err := util.IsDirOrFileExist(pathC); ok {
-			oldValue, _, errR = checkChange(pathC, changeData)
+			oldValue, diff, errR = checkChange(pathC, changeData)
 			if errR != nil {
 				return oldValue, errR
 			}
@@ -95,8 +96,9 @@ func changeLimitInContainer(resource string, changeFile string, target *apis.Kub
 				return oldValue, nil
 			}
 
-			if errW = util.WriteIntToFile(pathC, changeData); errW != nil {
-				return oldValue, fmt.Errorf("container limit failed [%v]", errW)
+			errW = changeT(diff, oldValue, changeData, pathP, pathC)
+			if errW != nil {
+				return oldValue, errW
 			}
 			log.Printf("modify %s limit success.\n", resource)
 			break
@@ -119,9 +121,9 @@ func changeLimitInContainer(resource string, changeFile string, target *apis.Kub
 				return oldValue, nil
 			}
 
-			err = changeT(diff, oldValue, changeData, pathP, pathC)
-			if err != nil {
-				return oldValue, err
+			errW = changeT(diff, oldValue, changeData, pathP, pathC)
+			if errW != nil {
+				return oldValue, errW
 			}
 			log.Printf("modify %s limit success.\n", resource)
 			break
@@ -144,9 +146,9 @@ func changeLimitInContainer(resource string, changeFile string, target *apis.Kub
 				return oldValue, nil
 			}
 
-			err = changeT(diff, oldValue, changeData, pathP, pathC)
-			if err != nil {
-				return oldValue, err
+			errW = changeT(diff, oldValue, changeData, pathP, pathC)
+			if errW != nil {
+				return oldValue, errW
 			}
 			log.Printf("modify %s limit success.\n", resource)
 			break
